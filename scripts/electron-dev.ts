@@ -572,7 +572,7 @@ async function main(): Promise<void> {
   console.log("🚀 Starting Electron...\n");
 
   const electronProc = spawn({
-    cmd: [ELECTRON_BIN, "apps/electron"],
+    cmd: [ELECTRON_BIN, "apps/electron", ...(process.env.CRAFT_ELECTRON_ARGS ? process.env.CRAFT_ELECTRON_ARGS.split(" ").filter(Boolean) : [])],
     cwd: ROOT_DIR,
     stdin: "ignore",
     stdout: "inherit",
