@@ -17,6 +17,7 @@
  * 6. Ask-mode prompt decision: Determine if user approval is needed
  */
 
+import { lopAfterChecks, lopBeforeChecks } from './lop/index.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
@@ -702,7 +703,30 @@ function withPermissionModeContext(reason: string, sessionId: string, effectiveM
   ].join('\n');
 }
 
+/**
+ * Public PreToolUse entry: lop rules first, then Craft's pipeline, then the
+ * lop pre-write backup for calls that will proceed. See ./lop/index.ts.
+ */
 export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult {
+  const lopCtx = {
+    toolName: ctx.toolName,
+    input: ctx.input,
+    sessionId: ctx.sessionId,
+    workingDirectory: ctx.workingDirectory,
+    workspaceRootPath: ctx.workspaceRootPath,
+  };
+  const blocked = lopBeforeChecks(lopCtx);
+  if (blocked) return blocked;
+  const result = runCorePreToolUseChecks(ctx);
+  if (result.type === 'allow' || result.type === 'modify' || result.type === 'prompt') {
+    const finalInput = result.type === 'modify' ? result.input : result.type === 'prompt' && result.modifiedInput ? result.modifiedInput : ctx.input;
+    const backupBlocked = lopAfterChecks(lopCtx, finalInput);
+    if (backupBlocked) return backupBlocked;
+  }
+  return result;
+}
+
+function runCorePreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult {
   const {
     toolName,
     input,
