@@ -21,6 +21,7 @@ import {
   sanitizePromptLine,
 } from './prompt-sanitize.ts';
 import { findGitRepositoryRoot } from './developer-context.ts';
+import { getLopPromptAppendix, toolMetadataEnabled } from '../agent/core/lop/prompt-extras.ts';
 
 /** Maximum size of CLAUDE.md file to include (10KB) */
 const MAX_CONTEXT_FILE_SIZE = 10 * 1024;
@@ -443,7 +444,8 @@ export function getSystemPrompt(
   const basePrompt = agentProfile === 'coding'
     ? getCodingAssistantPrompt(workspaceRootPath, backendName, resolvedIncludeCoAuthoredBy)
     : getCraftAssistantPrompt(workspaceRootPath, backendName, resolvedIncludeCoAuthoredBy);
-  const fullPrompt = `${basePrompt}${preferences}${projectBlock}${debugContext}${projectContextFiles}`;
+  // lop.json promptFiles / memoryIndex (global rules and memory index), appended last.
+  const fullPrompt = `${basePrompt}${preferences}${projectBlock}${debugContext}${projectContextFiles}${getLopPromptAppendix()}`;
 
   debug('[getSystemPrompt] full prompt length:', fullPrompt.length);
 
@@ -989,7 +991,7 @@ Built-in document CLIs are available via Bash: \`markitdown\`, \`pdf-tool\`, \`x
 Prefer \`markitdown\` as the universal converter when Read cannot handle a binary document. All tools support \`--help\`; most support \`-o <file>\` for output.
 ${rtkActive ? `
 ${RTK_NOTE}
-` : ''}
+` : ''}${toolMetadataEnabled() ? `
 ## Tool Metadata
 
 All MCP tools require two metadata fields (schema-enforced):
@@ -997,7 +999,7 @@ All MCP tools require two metadata fields (schema-enforced):
 - **\`_displayName\`** (required): Short name for the action (2-4 words), e.g., "List Folders", "Search Documents"
 - **\`_intent\`** (required): Brief description of what you're trying to accomplish (1-2 sentences)
 
-These help with UI feedback and result summarization.${FEATURE_FLAGS.developerFeedback ? `
+These help with UI feedback and result summarization.` : ''}${FEATURE_FLAGS.developerFeedback ? `
 
 ${DEVELOPER_FEEDBACK_SECTION}` : ''}`;
 }
@@ -1042,7 +1044,7 @@ The current mode is in \`<session_state>\`; apply the latest one immediately (\`
 ## Skills and Sources
 
 - When the user mentions \`[skill:slug]\`, read its \`SKILL.md\` first (\`~/.agents/skills/{slug}/\`, \`${workspacePath}/skills/{slug}/\` or \`{projectRoot}/.agents/skills/{slug}/\`) and follow it.
-- Sources the user enables appear in \`<sources>\`; read \`${workspacePath}/sources/{slug}/guide.md\` before first using a source's tools. MCP tools require \`_displayName\` (2-4 words) and \`_intent\` (1-2 sentences) fields.
+- Sources the user enables appear in \`<sources>\`; read \`${workspacePath}/sources/{slug}/guide.md\` before first using a source's tools.${toolMetadataEnabled() ? ' MCP tools require \`_displayName\` (2-4 words) and \`_intent\` (1-2 sentences) fields.' : ''}
 ${includeCoAuthoredBy ? `
 ${GIT_CONVENTIONS_SECTION}` : ''}${rtkActive ? `
 ${RTK_NOTE}

@@ -21,6 +21,7 @@
 // Shared infrastructure (toolMetadataStore, error capture, logging, config)
 // Hide every child process console on Windows in SDK subprocesses (must precede other imports)
 import './utils/windows-hide-children-auto.ts';
+import { getLopConfig } from './agent/core/lop/config.ts';
 import {
   DEBUG,
   DEBUG_FULL_BODIES,
@@ -2193,8 +2194,8 @@ async function interceptedFetch(
       if (bodyStr) {
         let parsed = JSON.parse(bodyStr);
 
-        // Add _intent and _displayName to all tool schemas
-        parsed = adapter.addMetadataToTools(parsed);
+        // Add _intent and _displayName to all tool schemas (lop.json `toolMetadata: false` turns this off)
+        if (getLopConfig().toolMetadata !== false) parsed = adapter.addMetadataToTools(parsed);
         // Re-inject stored metadata into conversation history (also runs the
         // Responses-API repair pass before metadata)
         parsed = adapter.injectMetadataIntoHistory(parsed);
