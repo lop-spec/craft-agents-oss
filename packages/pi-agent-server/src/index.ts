@@ -68,6 +68,7 @@ registerBunOAuthFlows();
 
 // Model resolution (extracted for testability + custom-endpoint precedence)
 import { resolvePiModel, isDeniedMiniModelId } from './model-resolution.ts';
+import { MISSING_PATH, PATH_TOOLS, grepLiteralFallback, missingPathHint, withMultiRead } from './lop-tool-hints.ts';
 import { pickProviderAppropriateMiniModel } from './pick-mini-model.ts';
 import { queryMiniModel } from './mini-model-query.ts';
 import {
@@ -661,7 +662,7 @@ async function ensureSession(): Promise<AgentSession> {
   //   - Do NOT pass tool *objects* to `tools` — names are matched as strings, so
   //     objects match nothing → zero tools active.
   const builtinDefs = [
-    createReadToolDefinition(cwd),
+    withMultiRead(createReadToolDefinition(cwd)),
     createBashToolDefinition(cwd, { shellPath: resolveWindowsShellPath() }),
     createEditToolDefinition(cwd),
     createWriteToolDefinition(cwd),
@@ -866,8 +867,33 @@ function wrapSingleTool(tool: ToolDefinition<any, any>): ToolDefinition<any, any
     // even if a future pre-tool-use path returns `allow` without modification.
     inputObj = stripCraftMetadata(inputObj);
 
-    // Execute original tool with (potentially modified) input
-    const result = await originalExecute(toolCallId, inputObj, signal, onUpdate, ctx);
+    // grep: an invalid regex would only fail and cost a round; search it literally.
+    if (tool.name === 'grep') inputObj = grepLiteralFallback(inputObj);
+
+    // Execute original tool with (potentially modified) input. A missing path
+    // gets the nearest existing directory's closest entries appended, so the
+    // model can correct the path without another listing round.
+    const pathHint = (text: string): string => {
+      const rawPath = inputObj.path ?? inputObj.file_path;
+      // Multi-file reads already append a hint per failed file.
+      const multiRead = Array.isArray(inputObj.paths) && inputObj.paths.length > 0;
+      if (!PATH_TOOLS.has(tool.name) || typeof rawPath !== 'string' || !rawPath || multiRead) return '';
+      if (!MISSING_PATH.test(text)) return '';
+      try { return missingPathHint(rawPath, resolvedCwd()); } catch { return ''; }
+    };
+    let result: Awaited<ReturnType<typeof originalExecute>>;
+    try {
+      result = await originalExecute(toolCallId, inputObj, signal, onUpdate, ctx);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const hint = pathHint(message);
+      if (hint) throw new Error(`${message}${hint}`);
+      throw error;
+    }
+    if (result.isError) {
+      const hint = pathHint(result.content.filter((c): c is PiTextContent => c.type === 'text').map(c => c.text).join('\n'));
+      if (hint) result = { ...result, content: [...result.content, { type: 'text', text: hint }] };
+    }
 
     // --- Post-execute: large response summarization ---
 
