@@ -70,8 +70,10 @@ import {
   CodePreviewOverlay,
   DocumentFormattedMarkdownOverlay,
   JSONPreviewOverlay,
+  FloatingPreviewProvider,
 } from '@craft-agent/ui'
 import { useLinkInterceptor, type FilePreviewState } from '@/hooks/useLinkInterceptor'
+import { collectSessionPreviewFiles, indexOfPath } from '@/lib/session-preview-files'
 import { useTransportConnectionState } from '@/hooks/useTransportConnectionState'
 import { useStaleSessionRecovery } from '@/hooks/useStaleSessionRecovery'
 import { TransportConnectionBanner, shouldShowTransportConnectionBanner } from '@/components/app-shell/TransportConnectionBanner'
@@ -1760,6 +1762,18 @@ export default function App() {
     readFile: (path) => window.electronAPI.readFile(path),
     readFileDataUrl: (path) => window.electronAPI.readFileDataUrl(path),
     readFileBinary: (path) => window.electronAPI.readFileBinary(path),
+    // Page through the files of the session the link came from: the selected
+    // session if it mentions the file, otherwise any visible panel that does.
+    getSiblingFiles: (path) => {
+      const ids = [sessionSelection.selected, ...store.get(visibleSessionIdsAtom)].filter((id): id is string => !!id)
+      let fallback: string[] = []
+      for (const id of new Set(ids)) {
+        const files = collectSessionPreviewFiles(store.get(sessionAtomFamily(id))?.messages)
+        if (indexOfPath(path, files) >= 0) return files
+        if (!fallback.length) fallback = files
+      }
+      return fallback
+    },
   })
 
   const connectionState = useTransportConnectionState()
@@ -2155,13 +2169,15 @@ export default function App() {
 
           {/* File preview overlay — rendered by the link interceptor when a previewable file is clicked */}
           {linkInterceptor.previewState && (
-            <FilePreviewRenderer
-              state={linkInterceptor.previewState}
-              onClose={linkInterceptor.closePreview}
-              loadDataUrl={linkInterceptor.readFileDataUrl}
-              loadPdfData={linkInterceptor.readFileBinary}
-              isDark={isDark}
-            />
+            <FloatingPreviewProvider value={{ floating: true, navigation: linkInterceptor.navigation ?? undefined }}>
+              <FilePreviewRenderer
+                state={linkInterceptor.previewState}
+                onClose={linkInterceptor.closePreview}
+                loadDataUrl={linkInterceptor.readFileDataUrl}
+                loadPdfData={linkInterceptor.readFileBinary}
+                isDark={isDark}
+              />
+            </FloatingPreviewProvider>
           )}
         </NavigationProvider>
         </TooltipProvider>

@@ -37,6 +37,12 @@ import { cn } from '../../lib/utils'
 import { getDismissibleLayerBridge } from '../../lib/dismissible-layer-bridge'
 import { FullscreenOverlayBaseHeader, type OverlayTypeBadge } from './FullscreenOverlayBaseHeader'
 import { OverlayErrorBanner, type OverlayErrorBannerProps } from './OverlayErrorBanner'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useFloatingPreview } from './FloatingPreviewContext'
+
+// Floating card paging buttons (design from Cetus artifact-view, MIT).
+const NAV_BUTTON =
+  'absolute top-1/2 z-20 -translate-y-1/2 rounded-full border border-border bg-background/85 p-2 text-foreground/80 shadow-md backdrop-blur-sm transition-colors hover:bg-foreground/5 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 // Z-index for fullscreen overlays - must be above app chrome (z-overlay: 300)
 // Uses CSS variable when available, falls back to hardcoded value
@@ -107,10 +113,31 @@ export function FullscreenOverlayBase({
   error,
 }: FullscreenOverlayBaseProps) {
   const { onSetTrafficLightsVisible } = usePlatform()
+  const { floating, navigation } = useFloatingPreview()
+  const canNavigate = !!navigation && navigation.count > 1 && navigation.index >= 0
+  const pageLabel = canNavigate ? `${navigation.index + 1} / ${navigation.count}` : undefined
+  const headerSubtitle = pageLabel ? (subtitle ? `${subtitle} · ${pageLabel}` : pageLabel) : subtitle
+
+  // Arrow keys page between files, unless an editable or media element owns them.
+  useEffect(() => {
+    if (!isOpen || !canNavigate) return
+    const nav = navigation
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target as HTMLElement | null
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|VIDEO|AUDIO)$/.test(target.tagName))) return
+      e.preventDefault()
+      if (e.key === 'ArrowLeft') nav.onPrev()
+      else nav.onNext()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, canNavigate, navigation])
 
   // Determine if we should render the structured header.
   // Any header-related prop triggers header rendering.
-  const hasHeader = !!(typeBadge || filePath || title || subtitle || headerActions || copyContent)
+  const hasHeader = !!(typeBadge || filePath || title || headerSubtitle || headerActions || copyContent)
   const overlayIdRef = useRef(`fullscreen-overlay-${Math.random().toString(36).slice(2)}`)
 
   useEffect(() => {
@@ -143,13 +170,23 @@ export function FullscreenOverlayBase({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
+        {floating && (
+          <Dialog.Overlay
+            className="fixed inset-0 bg-black/40"
+            style={{ zIndex: Z_FULLSCREEN, animation: 'ca-fade-in var(--dur-base, 160ms) var(--ease-out, ease-out)' }}
+          />
+        )}
         <Dialog.Content
           className={cn(
-            'fixed inset-0 overflow-hidden outline-none',
-            'bg-foreground-3 fullscreen-overlay-background',
+            floating
+              ? 'fixed inset-8 overflow-hidden rounded-xl border border-border bg-background shadow-2xl outline-none'
+              : 'fixed inset-0 overflow-hidden outline-none bg-foreground-3 fullscreen-overlay-background',
             className
           )}
-          style={{ zIndex: Z_FULLSCREEN }}
+          style={{
+            zIndex: Z_FULLSCREEN,
+            ...(floating ? { animation: 'ca-rise-in var(--dur-base, 200ms) var(--ease-out, ease-out)' } : {}),
+          }}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={(event) => {
             const handled = handleFullscreenEscapeWithStack()
@@ -197,11 +234,22 @@ export function FullscreenOverlayBase({
                 filePath={filePath}
                 title={title}
                 onTitleClick={onTitleClick}
-                subtitle={subtitle}
+                subtitle={headerSubtitle}
                 headerActions={headerActions}
                 copyContent={copyContent}
               />
             </div>
+          )}
+
+          {canNavigate && (
+            <>
+              <button type="button" onClick={navigation.onPrev} aria-label="Previous file" title="上一个文件 (←)" className={cn(NAV_BUTTON, 'left-3')}>
+                <ChevronLeft className="size-5" />
+              </button>
+              <button type="button" onClick={navigation.onNext} aria-label="Next file" title="下一个文件 (→)" className={cn(NAV_BUTTON, 'right-3')}>
+                <ChevronRight className="size-5" />
+              </button>
+            </>
           )}
         </Dialog.Content>
       </Dialog.Portal>

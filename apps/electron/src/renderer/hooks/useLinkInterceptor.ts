@@ -14,9 +14,10 @@
  * preventing unnecessary re-renders of consumers (AppShellContext, PlatformProvider).
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { classifyFile, type FilePreviewType } from '@craft-agent/ui'
 import { getLanguageFromPath } from '@/lib/file-utils'
+import { indexOfPath, siblingsFor } from '@/lib/session-preview-files'
 
 // ── Preview state types ────────────────────────────────────────────────────────
 // Each variant carries the data needed to render its specific overlay.
@@ -86,6 +87,15 @@ interface LinkInterceptorOptions {
   readFileDataUrl: (path: string) => Promise<string>
   /** Read file as binary (Uint8Array) for PDF previews via react-pdf */
   readFileBinary: (path: string) => Promise<Uint8Array>
+  /** Previewable files of the active session, for prev/next paging in the preview */
+  getSiblingFiles?: (path: string) => string[]
+}
+
+export interface PreviewNavigation {
+  index: number
+  count: number
+  onPrev: () => void
+  onNext: () => void
 }
 
 // ── Hook return type ───────────────────────────────────────────────────────────
@@ -109,6 +119,8 @@ interface LinkInterceptorResult {
   readFileDataUrl: (path: string) => Promise<string>
   /** Read file as binary — passed to PDF overlays for react-pdf */
   readFileBinary: (path: string) => Promise<Uint8Array>
+  /** Paging between the session's files while a preview is open; null when there is one file */
+  navigation: PreviewNavigation | null
 }
 
 // ── Hook implementation ────────────────────────────────────────────────────────
@@ -137,7 +149,9 @@ export function useLinkInterceptor(options: LinkInterceptorOptions): LinkInterce
    * state is needed. This avoids null-content issues in overlay components
    * (e.g., @uiw/react-json-view crashes on null value).
    */
-  const handleOpenFile = useCallback(async (path: string) => {
+  const [siblings, setSiblings] = useState<string[]>([])
+
+  const openPreview = useCallback(async (path: string) => {
     const classification = classifyFile(path)
 
     if (!classification.canPreview || !classification.type) {
@@ -167,6 +181,27 @@ export function useLinkInterceptor(options: LinkInterceptorOptions): LinkInterce
     }
   }, []) // Stable: uses optionsRef
 
+  /** Snapshot the session's files at open time, so paging order stays fixed while the preview is open. */
+  const handleOpenFile = useCallback((path: string) => {
+    let files: string[] = []
+    try { files = optionsRef.current.getSiblingFiles?.(path) ?? [] } catch { /* paging is optional */ }
+    setSiblings(classifyFile(path).canPreview && files.length ? siblingsFor(path, files) : [])
+    void openPreview(path)
+  }, [openPreview])
+
+  const currentPath = previewState?.filePath
+  const navIndex = currentPath ? indexOfPath(currentPath, siblings) : -1
+  const step = useCallback((delta: number) => {
+    if (navIndex < 0 || siblings.length < 2) return
+    void openPreview(siblings[(navIndex + delta + siblings.length) % siblings.length]!)
+  }, [navIndex, siblings, openPreview])
+  const onPrev = useCallback(() => step(-1), [step])
+  const onNext = useCallback(() => step(1), [step])
+  const navigation = useMemo<PreviewNavigation | null>(
+    () => (navIndex >= 0 && siblings.length > 1 ? { index: navIndex, count: siblings.length, onPrev, onNext } : null),
+    [navIndex, siblings.length, onPrev, onNext],
+  )
+
   /** Open file directly in external app, bypassing classification/preview.
    * Used by overlay header badges — when already viewing a file, "Open" should launch the editor. */
   const openFileExternal = useCallback((path: string) => {
@@ -180,6 +215,7 @@ export function useLinkInterceptor(options: LinkInterceptorOptions): LinkInterce
 
   const closePreview = useCallback(() => {
     setPreviewState(null)
+    setSiblings([])
   }, [])
 
   /** Open the currently previewed file in external app (from overlay header) */
@@ -218,6 +254,7 @@ export function useLinkInterceptor(options: LinkInterceptorOptions): LinkInterce
     revealCurrentInFinder,
     readFileDataUrl,
     readFileBinary,
+    navigation,
   }
 }
 

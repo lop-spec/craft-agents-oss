@@ -18,6 +18,7 @@
     "./context": "./src/context/index.ts",
     "./motion": "./src/motion/index.ts",
     "./utils": "./src/lib/utils.ts",
+    "./file-classification": "./src/lib/file-classification.ts",
     "./styles": "./src/styles/index.css"
   },
   "dependencies": {

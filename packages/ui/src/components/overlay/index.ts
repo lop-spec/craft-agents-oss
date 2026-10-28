@@ -3,6 +3,7 @@ export { FullscreenOverlayBase, type FullscreenOverlayBaseProps } from './Fullsc
 export { FullscreenOverlayBaseHeader, type FullscreenOverlayBaseHeaderProps, type OverlayTypeBadge } from './FullscreenOverlayBaseHeader'
 export { PreviewOverlay, type PreviewOverlayProps, type BadgeVariant } from './PreviewOverlay'
 export { ContentFrame, type ContentFrameProps } from './ContentFrame'
+export { FloatingPreviewProvider, useFloatingPreview, type FloatingPreviewValue, type FloatingPreviewNavigation } from './FloatingPreviewContext'
 
 // Helper components
 export { CopyButton, type CopyButtonProps } from './CopyButton'
