@@ -1,7 +1,7 @@
 export type CustomEndpointInput = 'text' | 'image'
 
 /** Custom endpoint protocol — determines which streaming adapter Pi SDK uses. */
-export type CustomEndpointApi = 'openai-completions' | 'anthropic-messages'
+export type CustomEndpointApi = 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 
 /**
  * Output-token cap for custom endpoint models when the connection doesn't set
@@ -100,7 +100,9 @@ export function buildCustomEndpointModelDef(
   return {
     id,
     name: id,
-    reasoning: false,
+    // Responses endpoints (e.g. a local Codex/ChatGPT gateway) accept a reasoning
+    // effort, so let Craft's thinking-level picker reach the request.
+    reasoning: api === 'openai-responses',
     input,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: overrides?.contextWindow ?? 131_072,
