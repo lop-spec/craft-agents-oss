@@ -10,6 +10,9 @@
  */
 
 import { execSync } from 'child_process'
+import { existsSync, readFileSync } from 'fs'
+import { homedir } from 'os'
+import { delimiter, join } from 'path'
 import { mainLog } from './logger'
 
 // Environment variables that should NOT be imported from the shell
@@ -105,5 +108,35 @@ export function loadShellEnv(): void {
       .join(':')
 
     process.env.PATH = newPath
+  }
+}
+
+/**
+ * Prepend user-configured tool directories (e.g. a portable Python or Node) to
+ * PATH so every agent backend and tool subprocess can find them.
+ *
+ * Reads `<config dir>/toolchain.json`: `{ "paths": ["C:\tools\python", ...] }`.
+ * Kept out of config.json so schema migrations never drop it. Missing file or
+ * missing directories are ignored.
+ */
+export function applyToolchainPath(): void {
+  try {
+    const configDir = process.env.CRAFT_CONFIG_DIR?.trim() || join(homedir(), '.craft-agent')
+    const file = join(configDir, 'toolchain.json')
+    if (!existsSync(file)) return
+    const parsed = JSON.parse(readFileSync(file, 'utf-8')) as { paths?: unknown }
+    const dirs = Array.isArray(parsed.paths)
+      ? parsed.paths.filter((p): p is string => typeof p === 'string' && p.trim() !== '' && existsSync(p))
+      : []
+    if (dirs.length === 0) return
+    // Windows env keys are case-insensitive; reuse the existing spelling (usually "Path").
+    const key = Object.keys(process.env).find(k => k.toUpperCase() === 'PATH') ?? 'PATH'
+    const current = (process.env[key] ?? '').split(delimiter).filter(Boolean)
+    const lower = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p)
+    const existing = new Set(current.map(lower))
+    process.env[key] = [...dirs.filter(d => !existing.has(lower(d))), ...current].join(delimiter)
+    mainLog.info(`[shell-env] Toolchain paths prepended: ${dirs.join(', ')}`)
+  } catch (error) {
+    mainLog.warn(`[shell-env] Ignoring toolchain.json: ${error instanceof Error ? error.message : String(error)}`)
   }
 }

@@ -45,6 +45,8 @@
     "./utils": "./src/utils/index.ts",
     "./utils/toolNames": "./src/utils/toolNames.ts",
     "./utils/redaction": "./src/utils/redaction.ts",
+    "./utils/windows-hide-children": "./src/utils/windows-hide-children.ts",
+    "./utils/windows-hide-children-auto": "./src/utils/windows-hide-children-auto.ts",
     "./utils/logo": "./src/utils/logo.ts",
     "./utils/service-url": "./src/utils/service-url.ts",
     "./utils/icon": "./src/utils/icon.ts",

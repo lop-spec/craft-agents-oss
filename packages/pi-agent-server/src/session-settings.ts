@@ -20,6 +20,7 @@
  * whatever repository the user opened. Craft owns the system prompt, skills
  * and tools for its sessions, so none of that is wanted.
  */
+import { existsSync } from 'node:fs';
 import { SettingsManager } from '@earendil-works/pi-coding-agent';
 import { LLM_QUERY_TIMEOUT_MS } from '../../shared/src/agent/llm-tool.ts';
 
@@ -86,11 +87,25 @@ export const CRAFT_PI_EPHEMERAL_MAX_BACKOFF_MS =
   CRAFT_PI_EPHEMERAL_RETRY_SETTINGS.baseDelayMs *
     (2 ** CRAFT_PI_EPHEMERAL_RETRY_SETTINGS.maxRetries - 1);
 
+/**
+ * Git Bash for Pi's bash tool on Windows. The main process resolves it (saved
+ * `gitBashPath` or auto-detection) into CLAUDE_CODE_GIT_BASH_PATH for its
+ * subprocesses; without an explicit shellPath Pi only probes Program Files and
+ * then re-runs `where bash.exe` on every command, which fails intermittently
+ * under load and for per-user Git installs.
+ */
+export function resolveWindowsShellPath(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (process.platform !== 'win32') return undefined;
+  const candidate = env.CLAUDE_CODE_GIT_BASH_PATH?.trim();
+  return candidate && existsSync(candidate) ? candidate : undefined;
+}
+
 /** Settings applied to one Pi session, isolated from project/global Pi files. */
 export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): PiSettings {
   const retry = purpose === 'ephemeral'
     ? CRAFT_PI_EPHEMERAL_RETRY_SETTINGS
     : CRAFT_PI_RETRY_SETTINGS;
+  const shellPath = resolveWindowsShellPath();
 
   return {
     // Deliver all steers pending at a turn boundary in one model call.
@@ -112,6 +127,7 @@ export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): P
     // the expected saving is at least $0.05. Keep that SDK default for chats;
     // utility sessions are one-shot and disposed right after their prompt.
     cacheWarming: purpose === 'ephemeral' ? 'off' : 'streaming',
+    ...(shellPath ? { shellPath } : {}),
   };
 }
 

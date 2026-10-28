@@ -1,7 +1,10 @@
+// Hide every child process console on Windows (must precede all other imports)
+import '@craft-agent/shared/utils/windows-hide-children-auto'
 // Load user's shell environment first (before other imports that may use env)
 // This ensures tools like Homebrew, nvm, etc. are available to the agent
-import { loadShellEnv } from './shell-env'
+import { loadShellEnv, applyToolchainPath } from './shell-env'
 loadShellEnv()
+applyToolchainPath()
 
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme, shell } from 'electron'
 import { createHash, randomUUID } from 'crypto'

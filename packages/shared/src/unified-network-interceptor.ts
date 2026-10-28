@@ -19,6 +19,8 @@
  */
 
 // Shared infrastructure (toolMetadataStore, error capture, logging, config)
+// Hide every child process console on Windows in SDK subprocesses (must precede other imports)
+import './utils/windows-hide-children-auto.ts';
 import {
   DEBUG,
   DEBUG_FULL_BODIES,

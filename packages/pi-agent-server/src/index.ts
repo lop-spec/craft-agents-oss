@@ -14,6 +14,9 @@
  * separate process, avoiding bundling issues in the Electron main process.
  */
 
+// Hide every child process console on Windows (must precede all other imports)
+import '../../shared/src/utils/windows-hide-children-auto.ts';
+
 import http from 'node:http';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';
@@ -70,6 +73,7 @@ import { queryMiniModel } from './mini-model-query.ts';
 import {
   CRAFT_PI_EPHEMERAL_QUERY_DEADLINE_MS,
   createCraftSettingsManager,
+  resolveWindowsShellPath,
 } from './session-settings.ts';
 import {
   EphemeralQueryCancelledError,
@@ -658,7 +662,7 @@ async function ensureSession(): Promise<AgentSession> {
   //     objects match nothing → zero tools active.
   const builtinDefs = [
     createReadToolDefinition(cwd),
-    createBashToolDefinition(cwd),
+    createBashToolDefinition(cwd, { shellPath: resolveWindowsShellPath() }),
     createEditToolDefinition(cwd),
     createWriteToolDefinition(cwd),
     createGrepToolDefinition(cwd),

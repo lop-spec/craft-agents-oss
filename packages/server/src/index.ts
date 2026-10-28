@@ -25,6 +25,8 @@
  *   CRAFT_MESSAGING_NODE_BIN   — Node binary used to spawn the WhatsApp worker (default: node)
  */
 
+// Hide every child process console on Windows (must precede all other imports)
+import '@craft-agent/shared/utils/windows-hide-children-auto'
 import { join } from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
 import { version as packageVersion } from '../package.json'
