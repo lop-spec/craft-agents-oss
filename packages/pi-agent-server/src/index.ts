@@ -615,9 +615,23 @@ async function createAuthenticatedRuntime(): Promise<{
   return moduleRuntimePromise;
 }
 
-async function ensureSession(): Promise<AgentSession> {
+// Concurrent callers (prompt, set_model, tool registration at session start) share one
+// creation. Without this, two sessions were created in parallel and handlePrompt ran on
+// one while piSessionPromptOverride belonged to the other, so the Craft system prompt
+// was set on the wrong session and the run fell back to Pi's default prompt.
+let sessionCreation: Promise<AgentSession> | null = null;
+
+function ensureSession(): Promise<AgentSession> {
+  if (piSession) return Promise.resolve(piSession);
+  sessionCreation ??= createSession().finally(() => { sessionCreation = null; });
+  return sessionCreation;
+}
+
+async function createSession(): Promise<AgentSession> {
   if (piSession) return piSession;
   if (!initConfig) throw new Error('Cannot create session: init not received');
+  // Tools are snapshotted below; a registration after this point marks the new session stale.
+  toolsChanged = false;
 
   const cwd = resolvedCwd();
 
@@ -782,7 +796,6 @@ async function ensureSession(): Promise<AgentSession> {
   piSession = session;
   piSessionPromptOverride = systemPromptOverride;
 
-  toolsChanged = false;
   debugLog(`Created Pi session: ${session.sessionId} (${wrappedAll.length} tools)`);
 
   // Notify main process of session ID
@@ -1455,6 +1468,8 @@ async function handlePrompt(msg: Extract<InboundMessage, { type: 'prompt' }>): P
     // If proxy tools changed since last session creation, dispose and recreate.
     // This avoids calling _buildRuntime() for dynamic tool updates — instead
     // we create a fresh session via continueRecent() with all tools known upfront.
+    // Let an in-flight creation finish first so its tool snapshot is checked too.
+    if (sessionCreation) await sessionCreation.catch(() => undefined);
     if (toolsChanged && piSession) {
       debugLog('Recreating session due to tool changes');
       if (unsubscribeEvents) {

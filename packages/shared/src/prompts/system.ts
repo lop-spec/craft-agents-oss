@@ -445,7 +445,9 @@ export function getSystemPrompt(
     ? getCodingAssistantPrompt(workspaceRootPath, backendName, resolvedIncludeCoAuthoredBy)
     : getCraftAssistantPrompt(workspaceRootPath, backendName, resolvedIncludeCoAuthoredBy);
   // lop.json promptFiles / memoryIndex (global rules and memory index), appended last.
-  const fullPrompt = `${basePrompt}${preferences}${projectBlock}${debugContext}${projectContextFiles}${getLopPromptAppendix()}`;
+  const lopAppendix = getLopPromptAppendix();
+  const fullPrompt = `${basePrompt}${preferences}${projectBlock}${debugContext}${projectContextFiles}${lopAppendix}`;
+  debug('[getSystemPrompt] lop appendix length:', lopAppendix.length);
 
   debug('[getSystemPrompt] full prompt length:', fullPrompt.length);
 
