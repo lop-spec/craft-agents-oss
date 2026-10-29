@@ -244,42 +244,21 @@ foreach ($dep in @("interceptor-common.ts", "feature-flags.ts", "interceptor-req
 # 6. Build Electron app
 Write-Host "Building Electron app..."
 
-# Build main process with OAuth credentials
-Write-Host "  Building main process..."
-$MainArgs = @(
-    "apps/electron/src/main/index.ts",
-    "--bundle",
-    "--platform=node",
-    "--format=cjs",
-    "--outfile=apps/electron/dist/main.cjs",
-    "--external:electron",
-    # SDK 0.3.x is pure ESM and calls createRequire(import.meta.url) at module init.
-    # esbuild's CJS bundling leaves import.meta.url undefined for inlined ESM, crashing
-    # the app on load (ERR_INVALID_ARG_VALUE). Externalize it so Node loads it natively
-    # as ESM — the SDK core is staged into the app's node_modules above (step 4).
-    # Must stay in sync with package.json build:main and scripts/electron-dev.ts.
-    "--external:@anthropic-ai/claude-agent-sdk"
-)
-# Add OAuth defines if env vars are set
-if ($env:GOOGLE_OAUTH_CLIENT_ID) {
-    $MainArgs += "--define:process.env.GOOGLE_OAUTH_CLIENT_ID=`"'$env:GOOGLE_OAUTH_CLIENT_ID'`""
-}
-if ($env:GOOGLE_OAUTH_CLIENT_SECRET) {
-    $MainArgs += "--define:process.env.GOOGLE_OAUTH_CLIENT_SECRET=`"'$env:GOOGLE_OAUTH_CLIENT_SECRET'`""
-}
-if ($env:SLACK_OAUTH_CLIENT_ID) {
-    $MainArgs += "--define:process.env.SLACK_OAUTH_CLIENT_ID=`"'$env:SLACK_OAUTH_CLIENT_ID'`""
-}
-if ($env:SLACK_OAUTH_CLIENT_SECRET) {
-    $MainArgs += "--define:process.env.SLACK_OAUTH_CLIENT_SECRET=`"'$env:SLACK_OAUTH_CLIENT_SECRET'`""
-}
-if ($env:MICROSOFT_OAUTH_CLIENT_ID) {
-    $MainArgs += "--define:process.env.MICROSOFT_OAUTH_CLIENT_ID=`"'$env:MICROSOFT_OAUTH_CLIENT_ID'`""
-}
+# Build main process, network interceptor (dist/interceptor.cjs), Pi agent server and
+# WhatsApp worker with the same script as dev/macOS/Linux (OAuth defines are read from
+# env there). The hand-written esbuild call that used to live here predates the Pi
+# backend, so packaged Windows builds shipped without resources/pi-agent-server and
+# every Pi session failed with "piServerPath not configured".
+Write-Host "  Building main process, interceptor and Pi agent server..."
 Push-Location $RootDir
 try {
-    & npx esbuild @MainArgs
+    bun run electron:build:main
     if ($LASTEXITCODE -ne 0) { throw "Main process build failed" }
+    bun -e "import { copyPiAgentServer } from './scripts/build/common.ts'; copyPiAgentServer({ platform: 'win32', arch: 'x64', upload: false, uploadLatest: false, uploadScript: false, rootDir: process.cwd(), electronDir: process.cwd() + '/apps/electron' });"
+    if ($LASTEXITCODE -ne 0) { throw "Pi agent server staging failed" }
+    foreach ($required in @("$ElectronDir\resources\pi-agent-server\index.js", "$ElectronDir\dist\interceptor.cjs", "$ElectronDir\dist\main.cjs")) {
+        if (-not (Test-Path $required)) { throw "Build output missing: $required" }
+    }
 } finally {
     Pop-Location
 }
