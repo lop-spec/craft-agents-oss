@@ -1573,12 +1573,9 @@ export class ClaudeAgent extends BaseAgent {
           // mid-turn. Craft never sees a detached call's late result (it reaches the model as a
           // queued task notification), so keep every tool attached. The event adapter still
           // renders a detached placeholder sensibly (`isDetachedToolCallResult`).
-          // Coding mode: a Bash `gh pr create` pins the PR it opened (pinCreatedPrHook). Hooks
-          // run in parallel on the original output; the two act on different tools.
           PostToolUse: [{
             hooks: [
               async (input) => this.guardLargeMcpToolOutput(input),
-              async (input) => this.pinCreatedPrHook(input),
             ],
           }],
 
@@ -2880,26 +2877,6 @@ This is a branched conversation. All prior messages in this conversation are par
     // Optional chaining: partially constructed agents (teardown, prototype-based
     // test fixtures) have no adapter and must read as "not compacting".
     return this.isProcessing() && this.eventAdapter?.isManualCompactionRequested() === true;
-  }
-
-  /**
-   * PostToolUse, Coding mode: pin the PR a Bash `gh pr create` printed (`BaseAgent.pinCreatedPr`)
-   * and tell the model through `additionalContext`, so it doesn't pin it again with pr_bind.
-   */
-  private async pinCreatedPrHook(input: SdkAutomationInput): Promise<{
-    continue: boolean;
-    hookSpecificOutput?: { hookEventName: 'PostToolUse'; additionalContext: string };
-  }> {
-    if (input.hook_event_name !== 'PostToolUse' || input.tool_name !== 'Bash') return { continue: true };
-    // Typed as a string for automations; for Bash the SDK passes { stdout, stderr, interrupted }.
-    const response: unknown = input.tool_response;
-    const output = typeof response === 'string'
-      ? response
-      : [(response as { stdout?: unknown } | null)?.stdout, (response as { stderr?: unknown } | null)?.stderr]
-          .filter((part): part is string => typeof part === 'string')
-          .join('\n');
-    const note = await this.pinCreatedPr(input.tool_input?.command, output);
-    return note ? { continue: true, hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: note } } : { continue: true };
   }
 
   /**

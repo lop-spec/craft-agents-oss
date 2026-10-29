@@ -110,10 +110,6 @@ export const CHANNEL_MAP = {
   onUpdateAvailable: listener(RPC_CHANNELS.update.AVAILABLE),
   onUpdateDownloadProgress: listener(RPC_CHANNELS.update.DOWNLOAD_PROGRESS),
 
-  // Release notes
-  getReleaseNotes: invoke(RPC_CHANNELS.releaseNotes.GET),
-  getLatestReleaseVersion: invoke(RPC_CHANNELS.releaseNotes.GET_LATEST_VERSION),
-
   // Shell operations
   openUrl: invoke(RPC_CHANNELS.shell.OPEN_URL),
   openFile: invoke(RPC_CHANNELS.shell.OPEN_FILE),
@@ -351,19 +347,6 @@ export const CHANNEL_MAP = {
 
   // Git
   getGitBranch: invoke(RPC_CHANNELS.git.GET_BRANCH),
-  listCodingRepos: invoke(RPC_CHANNELS.git.LIST_REPOS),
-  createCodingWorktree: invoke(RPC_CHANNELS.git.CREATE_WORKTREE),
-
-  // PR watcher (Coding mode chat-header chip)
-  prWatchSubscribe: invoke(RPC_CHANNELS.prWatch.SUBSCRIBE),
-  prWatchUnsubscribe: invoke(RPC_CHANNELS.prWatch.UNSUBSCRIBE),
-  prWatchRefresh: invoke(RPC_CHANNELS.prWatch.REFRESH),
-  prWatchGetDetails: invoke(RPC_CHANNELS.prWatch.GET_DETAILS),
-  prWatchBind: invoke(RPC_CHANNELS.prWatch.BIND),
-  prWatchUnbind: invoke(RPC_CHANNELS.prWatch.UNBIND),
-  prWatchSetAutoMerge: invoke(RPC_CHANNELS.prWatch.SET_AUTO_MERGE),
-  prWatchSetAutoFix: invoke(RPC_CHANNELS.prWatch.SET_AUTO_FIX),
-  onPrWatchChanged: listener(RPC_CHANNELS.prWatch.CHANGED),
   checkGitBash: invoke(RPC_CHANNELS.gitbash.CHECK),
   browseForGitBash: invoke(RPC_CHANNELS.gitbash.BROWSE),
   setGitBashPath: invoke(RPC_CHANNELS.gitbash.SET_PATH),

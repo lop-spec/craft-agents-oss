@@ -94,10 +94,6 @@ export const LOCAL_ONLY_CHANNELS = new Set<string>([
   RPC_CHANNELS.update.AVAILABLE,
   RPC_CHANNELS.update.DOWNLOAD_PROGRESS,
 
-  // releaseNotes — local app info
-  RPC_CHANNELS.releaseNotes.GET,
-  RPC_CHANNELS.releaseNotes.GET_LATEST_VERSION,
-
   // badge — local dock badge
   RPC_CHANNELS.badge.REFRESH,
   RPC_CHANNELS.badge.SET_ICON,
@@ -441,22 +437,8 @@ export const REMOTE_ELIGIBLE_CHANNELS = new Set<string>([
   RPC_CHANNELS.projects.DELETE_ASSET,
   RPC_CHANNELS.projects.CHANGED,
 
-
   // git — workspace filesystem
   RPC_CHANNELS.git.GET_BRANCH,
-  RPC_CHANNELS.git.LIST_REPOS,
-  RPC_CHANNELS.git.CREATE_WORKTREE,
-
-  // prWatch — the PR watcher runs where the session's repo, source credentials and `gh` live
-  RPC_CHANNELS.prWatch.SUBSCRIBE,
-  RPC_CHANNELS.prWatch.UNSUBSCRIBE,
-  RPC_CHANNELS.prWatch.REFRESH,
-  RPC_CHANNELS.prWatch.GET_DETAILS,
-  RPC_CHANNELS.prWatch.BIND,
-  RPC_CHANNELS.prWatch.UNBIND,
-  RPC_CHANNELS.prWatch.SET_AUTO_MERGE,
-  RPC_CHANNELS.prWatch.SET_AUTO_FIX,
-  RPC_CHANNELS.prWatch.CHANGED,
 
   // resources — workspace resource export/import
   RPC_CHANNELS.resources.EXPORT,

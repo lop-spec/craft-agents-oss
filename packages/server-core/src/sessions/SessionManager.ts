@@ -77,9 +77,6 @@ import {
 import { serializeHeaderCredential, loadWorkspaceSources, loadAllSources, getSourcesBySlugs, isSourceUsable, type LoadedSource, type McpServerConfig, getSourcesNeedingAuth, getSourceCredentialManager, TokenRefreshManager } from '@craft-agent/shared/sources'
 import { listTaskSlugs, parseTaskSpec, uniqueTaskSlug } from '@craft-agent/shared/tasks'
 import { createTaskFromSpec, resolveCreateTaskProjectId } from '../tasks'
-import { buildPrWatchToolCallbacks } from '../pr-watch/tool-callbacks'
-import { prEntryId } from '@craft-agent/shared/pr-watch'
-import { getPrAutoFixMonitor, getPrWatchRegistry } from '../handlers/rpc/pr-watch'
 import { buildDecisionToolCallbacks } from '../decisions/tool-callbacks'
 import { buildServersFromSources as buildServersFromSourcesShared } from '../sources/build-servers'
 import { buildMcpSourceToolCallbacks } from '../sources/mcp-source-tool-callbacks'
@@ -92,7 +89,7 @@ import { redactBrowserPasswordFills } from '@craft-agent/shared/agent'
 import { restoreFiles } from '@craft-agent/shared/utils/bundle-files'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { CraftMcpClient, McpClientPool, McpPoolServer } from '@craft-agent/shared/mcp'
-import { type Session, type SessionEvent, type FileAttachment, type SendMessageOptions, type UnreadSummary, type RemoteSessionTransferPayload, type ImportRemoteSessionTransferResult, type BackgroundTaskOutput, type StopBackgroundTaskResult, type BoundPr, type PrMonitorState, RPC_CHANNELS, generateMessageId } from '@craft-agent/shared/protocol'
+import { type Session, type SessionEvent, type FileAttachment, type SendMessageOptions, type UnreadSummary, type RemoteSessionTransferPayload, type ImportRemoteSessionTransferResult, type BackgroundTaskOutput, type StopBackgroundTaskResult, RPC_CHANNELS, generateMessageId } from '@craft-agent/shared/protocol'
 import { launchOutputFile, readBackgroundTaskOutput } from './background-task-output'
 import { messageToStored, storedToMessage, type Message, type StoredAttachment, type ToolDisplayMeta, type TokenUsage } from '@craft-agent/core/types'
 import { formatPathsToRelative, formatToolInputPaths, perf, encodeIconToDataUrlAsync, getEmojiIcon, resetSummarizationClient, resolveToolIcon, readFileAttachment, selectSpreadMessages, normalizePath } from '@craft-agent/shared/utils'
@@ -823,10 +820,6 @@ interface ManagedSession {
   thinkingLevel?: ThinkingLevel
   // Coding mode: lean coding prompt + session-tool profile (fixed once the session has messages)
   codingMode?: boolean
-  // Coding mode: PRs pinned to this session (chat-header PR carousel; see pr_bind / pr_unbind)
-  boundPrs?: BoundPr[]
-  // Coding mode: per-PR monitor state (auto-fix toggle + what it last acted on), keyed by PR id
-  prMonitors?: Record<string, PrMonitorState>
   // System prompt preset for mini agents ('default' | 'mini')
   systemPromptPreset?: 'default' | 'mini' | string
   // Role/type of the last message (for badge display without loading messages)
@@ -1162,17 +1155,6 @@ function resolveSupportsBranching(managed: ManagedSession): boolean {
 const DEFAULT_TOKEN_USAGE = {
   inputTokens: 0, outputTokens: 0, totalTokens: 0,
   contextTokens: 0, costUsd: 0,
-}
-
-/** Two bound PRs are the same pin when their host/owner/repo/number match (case-insensitive). */
-function sameBoundPr(
-  a: { host: string; owner: string; repo: string; number: number },
-  b: { host: string; owner: string; repo: string; number: number },
-): boolean {
-  return a.number === b.number
-    && a.host.toLowerCase() === b.host.toLowerCase()
-    && a.owner.toLowerCase() === b.owner.toLowerCase()
-    && a.repo.toLowerCase() === b.repo.toLowerCase()
 }
 
 /**
@@ -5038,16 +5020,6 @@ export class SessionManager implements ISessionManager {
           sessionId: managed.id,
           log: (message: string) => sessionLog.info(message),
         }),
-        // PR watcher tools (pr_status/pr_bind/pr_unbind/pr_set_auto_merge) — Coding mode. Bound to the
-        // invoking session; the registry (handlers/rpc/pr-watch) owns the GitHub credentials and the
-        // watcher, so tokens never reach the agent. getRegistry resolves the current instance at call
-        // time (it is recreated when the RPC handlers re-register).
-        prWatch: buildPrWatchToolCallbacks({
-          sessionId: managed.id,
-          sessionManager: this,
-          getRegistry: getPrWatchRegistry,
-          getAutoFixMonitor: getPrAutoFixMonitor,
-        }),
         getSessionInfoFn: (sessionId?: string) => {
           const targetId = sessionId ?? managed.id
           const session = this.sessions.get(targetId)
@@ -8466,74 +8438,6 @@ export class SessionManager implements ISessionManager {
     } catch (error) {
       sessionLog.warn(`Session ${target.id}: summary of ${source.id} failed after ${Date.now() - startedAt} ms:`, error)
     }
-  }
-
-  /** Coding mode: PRs pinned to a session (chat-header PR carousel), in addedAt order. */
-  getSessionBoundPrs(sessionId: string): BoundPr[] {
-    return this.sessions.get(sessionId)?.boundPrs ?? []
-  }
-
-  /**
-   * Pin a PR to a session (pr_bind). Deduped by host/owner/repo#number — re-binding an existing PR
-   * refreshes its position — then persisted. Returns the new list (addedAt order).
-   */
-  bindPrToSession(sessionId: string, pr: BoundPr): BoundPr[] {
-    const managed = this.sessions.get(sessionId)
-    if (!managed) throw new Error(`Session ${sessionId} not found`)
-    const next = [...(managed.boundPrs ?? []).filter(p => !sameBoundPr(p, pr)), pr].sort((a, b) => a.addedAt - b.addedAt)
-    managed.boundPrs = next
-    sessionLog.info(`Session ${sessionId}: bound PR ${pr.owner}/${pr.repo}#${pr.number} (${next.length} total)`)
-    this.persistSession(managed)
-    return next
-  }
-
-  /** Remove a pinned PR from a session (pr_unbind); persists and returns the new list. */
-  unbindPrFromSession(sessionId: string, pr: { host: string; owner: string; repo: string; number: number }): BoundPr[] {
-    const managed = this.sessions.get(sessionId)
-    if (!managed) throw new Error(`Session ${sessionId} not found`)
-    const next = (managed.boundPrs ?? []).filter(p => !sameBoundPr(p, pr))
-    // Stored only when non-empty, so sessions that never bind keep an unchanged header (like codingMode)
-    managed.boundPrs = next.length ? next : undefined
-    // An unbound PR's auto-fix goes with it
-    const monitorId = prEntryId(pr)
-    if (managed.prMonitors?.[monitorId]) {
-      const { [monitorId]: _dropped, ...rest } = managed.prMonitors
-      managed.prMonitors = Object.keys(rest).length ? rest : undefined
-    }
-    sessionLog.info(`Session ${sessionId}: unbound PR ${pr.owner}/${pr.repo}#${pr.number} (${next.length} left)`)
-    this.persistSession(managed)
-    return next
-  }
-
-  /** Coding mode: per-PR monitor state (auto-fix), keyed by PR id. */
-  getSessionPrMonitors(sessionId: string): Record<string, PrMonitorState> {
-    return this.sessions.get(sessionId)?.prMonitors ?? {}
-  }
-
-  /**
-   * Turn auto-fix (the PR card's Fix toggle) on or off for one PR of a session; persists and returns
-   * the monitors. Turning it off keeps what the last run acted on, so turning it back on only fixes
-   * feedback that is new since then.
-   */
-  setSessionPrAutoFix(sessionId: string, prId: string, enabled: boolean): Record<string, PrMonitorState> {
-    const managed = this.sessions.get(sessionId)
-    if (!managed) throw new Error(`Session ${sessionId} not found`)
-    const monitors = { ...(managed.prMonitors ?? {}) }
-    const entry: PrMonitorState = { ...(monitors[prId] ?? {}), autoFix: enabled || undefined }
-    if (entry.autoFix || entry.lastFixAt) monitors[prId] = entry
-    else delete monitors[prId]
-    managed.prMonitors = Object.keys(monitors).length ? monitors : undefined
-    sessionLog.info(`Session ${sessionId}: auto-fix ${enabled ? 'on' : 'off'} for ${prId}`)
-    this.persistSession(managed)
-    return managed.prMonitors ?? {}
-  }
-
-  /** Record an auto-fix run: when, and the review feedback (signature) it acted on. */
-  recordPrAutoFixRun(sessionId: string, prId: string, signature: string[], at: number): void {
-    const managed = this.sessions.get(sessionId)
-    if (!managed) return
-    managed.prMonitors = { ...(managed.prMonitors ?? {}), [prId]: { ...(managed.prMonitors?.[prId] ?? {}), lastFixAt: at, lastFixSignature: signature } }
-    this.persistSession(managed)
   }
 
   /** A session's metadata without loading its messages (cheap, unlike getSession). */

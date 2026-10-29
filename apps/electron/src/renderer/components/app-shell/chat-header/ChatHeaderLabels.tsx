@@ -29,7 +29,6 @@ import type { SessionMeta } from '@/atoms/sessions'
 import { cn } from '@/lib/utils'
 import { LabelMenuItems } from '../SessionMenuParts'
 import { CHAT_HEADER_MAX_LABELS, headerLabelFitCount, labelStripBudget, visibleLabelIndexes } from './label-strip-layout'
-import { PR_CHIP_RESERVE_PAD } from './pr-watch/ChatHeaderPrChip'
 
 const NO_LABELS: string[] = []
 const HIDDEN: React.CSSProperties = { position: 'absolute', visibility: 'hidden', pointerEvents: 'none' }
@@ -44,11 +43,9 @@ interface ChatHeaderLabelsProps {
   rowEl: HTMLElement | null
   /** At most this many chips before "+N" (default {@link CHAT_HEADER_MAX_LABELS}) */
   maxLabels?: number
-  /** The Coding-mode PR chip: its width is kept free of labels */
-  reserveEl?: HTMLElement | null
 }
 
-export function ChatHeaderLabels({ item, labels, onLabelsChange, rowEl, maxLabels = CHAT_HEADER_MAX_LABELS, reserveEl }: ChatHeaderLabelsProps) {
+export function ChatHeaderLabels({ item, labels, onLabelsChange, rowEl, maxLabels = CHAT_HEADER_MAX_LABELS }: ChatHeaderLabelsProps) {
   const { panelId } = useAppShellContext()
   const sessionLabels = item.labels ?? NO_LABELS
   const flatLabels = React.useMemo(() => flattenLabels(labels), [labels])
@@ -78,9 +75,7 @@ export function ChatHeaderLabels({ item, labels, onLabelsChange, rowEl, maxLabel
     const chips = Array.from(strip.querySelectorAll<HTMLElement>('[data-label-chip]'))
     const measure = () => {
       const widths = chips.map(chip => chip.getBoundingClientRect().width)
-      // The PR chip never shrinks, so reserving it can't feed back into the strip either.
-      const reserved = reserveEl ? reserveEl.getBoundingClientRect().width + PR_CHIP_RESERVE_PAD : 0
-      const budget = labelStripBudget(row.clientWidth, reserved)
+      const budget = labelStripBudget(row.clientWidth, 0)
       const next = headerLabelFitCount(widths, budget, probe.getBoundingClientRect().width, undefined, maxLabels)
       setFitCount(previous => (previous === next ? previous : next))
     }
@@ -90,9 +85,8 @@ export function ChatHeaderLabels({ item, labels, onLabelsChange, rowEl, maxLabel
     observer.observe(row)
     chips.forEach(chip => observer.observe(chip))
     observer.observe(probe)
-    if (reserveEl) observer.observe(reserveEl)
     return () => observer.disconnect()
-  }, [resolved, rowEl, reserveEl, maxLabels])
+  }, [resolved, rowEl, maxLabels])
 
   // A valued label applied from the composer's # menu: open its editor once the label has arrived. Only the
   // header in the asking composer's panel answers: the same session can be open in two panels.

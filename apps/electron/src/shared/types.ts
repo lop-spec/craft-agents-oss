@@ -406,10 +406,6 @@ export interface ElectronAPI {
   onUpdateAvailable(callback: (info: UpdateInfo) => void): () => void
   onUpdateDownloadProgress(callback: (progress: number) => void): () => void
 
-  // Release notes
-  getReleaseNotes(): Promise<string>
-  getLatestReleaseVersion(): Promise<string | undefined>
-
   // System warnings (startup checks)
   getSystemWarnings(): Promise<{ vcredistMissing: boolean; downloadUrl?: string }>
 
@@ -650,26 +646,6 @@ export interface ElectronAPI {
 
   // Git operations
   getGitBranch(dirPath: string): Promise<string | null>
-  /** Coding mode worktree picker: local repos (workspace folder + these recent folders) and `gh repo list` */
-  listCodingRepos(workspaceId: string, recentDirs: string[], options?: { refreshGitHub?: boolean }): Promise<import('@craft-agent/shared/protocol').RepoListing>
-  /** Creates a new session's worktree (cloning a GitHub-only repo first); rejects with git's reason */
-  createCodingWorktree(workspaceId: string, request: import('@craft-agent/shared/protocol').CreateWorktreeRequest, recentDirs: string[]): Promise<import('@craft-agent/shared/protocol').CreateWorktreeResult>
-
-  // PR watcher (Coding mode): subscribe per session, then receive pushes; see protocol/pr-watch.ts
-  prWatchSubscribe(sessionId: string): Promise<{ subscriptionId: string | null; state: import('@craft-agent/shared/protocol').PrWatchSessionState }>
-  prWatchUnsubscribe(subscriptionId: string): Promise<void>
-  prWatchRefresh(sessionId: string): Promise<void>
-  /** Card details for one carousel entry (by its stable PR id) */
-  prWatchGetDetails(sessionId: string, prId: string): Promise<import('@craft-agent/shared/protocol').PrDetails | null>
-  /** Pin a PR to the session by URL or number (verifies before persisting) */
-  prWatchBind(sessionId: string, ref: string): Promise<import('@craft-agent/session-tools-core').PrBindToolResult>
-  /** Remove a pinned PR from the session */
-  prWatchUnbind(sessionId: string, ref: string): Promise<import('@craft-agent/session-tools-core').PrUnbindToolResult>
-  /** Enable/disable GitHub auto-merge for one of the session's PRs */
-  prWatchSetAutoMerge(sessionId: string, ref: string, enabled: boolean, method?: import('@craft-agent/shared/protocol').PrMergeMethod): Promise<import('@craft-agent/session-tools-core').PrAutoMergeToolResult>
-  /** Turn auto-fix (the card's Fix toggle) on/off for one of the session's PRs, by its entry id */
-  prWatchSetAutoFix(sessionId: string, prId: string, enabled: boolean): Promise<import('@craft-agent/shared/protocol').PrAutoFixResult>
-  onPrWatchChanged(callback: (sessionId: string, state: import('@craft-agent/shared/protocol').PrWatchSessionState) => void): () => void
 
   // Git Bash (Windows)
   checkGitBash(): Promise<GitBashStatus>
