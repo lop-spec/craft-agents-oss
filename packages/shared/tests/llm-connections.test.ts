@@ -32,6 +32,19 @@ describe('getMiniModel()', () => {
     expect(getMiniModel(conn)).toBe('claude-haiku-4-5-20251001');
   });
 
+  // --- Explicit utility model ---
+
+  it('prefers the connection miniModel when the connection offers it', () => {
+    const conn = { ...makeConnection('pi_compat', ['chatgpt-web-instant', 'qwen-web-omni-flash'], 'openai'), miniModel: 'chatgpt-web-instant' };
+    expect(getMiniModel(conn)).toBe('chatgpt-web-instant');
+    expect(getSummarizationModel(conn)).toBe('chatgpt-web-instant');
+  });
+
+  it('ignores a miniModel the connection does not offer', () => {
+    const conn = { ...makeConnection('pi_compat', ['chatgpt-web-instant', 'qwen-web-omni-flash'], 'openai'), miniModel: 'gone' };
+    expect(getMiniModel(conn)).toBe('qwen-web-omni-flash');
+  });
+
   // --- Pi providers ---
 
   it('finds mini for pi provider', () => {

@@ -1,7 +1,10 @@
 export type CustomEndpointInput = 'text' | 'image'
 
-/** Custom endpoint protocol — determines which streaming adapter Pi SDK uses. */
-export type CustomEndpointApi = 'openai-completions' | 'openai-responses' | 'anthropic-messages'
+/**
+ * Custom endpoint protocol — determines which streaming adapter Pi SDK uses.
+ * `pi-web`: web chat models served by a pi-chatgpt-web folder (see web-models.ts).
+ */
+export type CustomEndpointApi = 'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'pi-web'
 
 /**
  * Output-token cap for custom endpoint models when the connection doesn't set

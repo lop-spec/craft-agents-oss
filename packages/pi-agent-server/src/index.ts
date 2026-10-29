@@ -117,6 +117,7 @@ import { adaptCredentialForPiSdk, type PiCredential } from './adapt-credential.t
 import { resolveCraftAgentDir } from './agent-dir.ts';
 import { toPiProviderId } from '../../shared/src/config/pi-provider-ids.ts';
 import { providerEndpointEnv } from './provider-endpoint-env.ts';
+import { loadWebModelRoutes, registerWebModels, WEB_MODELS_API, type WebModelRoute } from './web-models.ts';
 
 // ============================================================
 // Types — JSONL Protocol
@@ -489,6 +490,16 @@ function isLocalhostUrl(url: string): boolean {
 /** Model IDs currently registered under the custom-endpoint provider */
 let customEndpointModelIds: Set<string> = new Set();
 
+/** Web models of a `pi-web` connection, loaded before any registration (see web-models.ts) */
+let webModelRoutes: Map<string, WebModelRoute> | null = null;
+
+/** Load the web models when the connection is a `pi-web` custom endpoint (no-op otherwise). */
+async function ensureWebModelRoutes(api: string | undefined, baseUrl: string | undefined): Promise<void> {
+  if (api !== WEB_MODELS_API || !baseUrl?.trim()) return;
+  webModelRoutes = await loadWebModelRoutes(baseUrl.trim());
+  debugLog(`[web-models] Loaded ${webModelRoutes.size} web model(s) from ${baseUrl.trim()}`);
+}
+
 /**
  * Register (or re-register) the custom-endpoint provider with the given models.
  * Note: registerProvider replaces the entire provider, so we maintain a Set of all
@@ -502,6 +513,13 @@ function registerCustomEndpointModels(
   baseUrl: string,
   models: CustomEndpointModelEntry[],
 ): void {
+  if (api === WEB_MODELS_API) {
+    if (!webModelRoutes) throw new Error('Web models are not loaded');
+    for (const m of models) customEndpointModelIds.add(m.id);
+    registerWebModels(registry, webModelRoutes);
+    debugLog(`Registered ${webModelRoutes.size} web model(s) [${[...webModelRoutes.keys()].join(', ')}]`);
+    return;
+  }
   for (const m of models) {
     customEndpointModelIds.add(m.id);
     if (m.contextWindow || m.supportsImages !== undefined) {
@@ -596,6 +614,7 @@ async function createAuthenticatedRuntime(): Promise<{
           : [initConfig.model || 'default']
         ).map(normalizeCustomEndpointModelEntry);
         customEndpointModelIds = new Set();  // Reset on fresh registry creation
+        await ensureWebModelRoutes(api, initConfig.baseUrl);
         registerCustomEndpointModels(modelRegistry, api, initConfig.baseUrl!.trim(), modelEntries);
       } else if (hasCustomEndpoint && !initConfig?.customEndpoint) {
         debugLog('Custom endpoint without protocol config — models may not resolve. Set customEndpoint.api for proper routing.');
@@ -1734,6 +1753,7 @@ async function handleUpdateRuntimeConfig(msg: RuntimeConfigUpdateMessage): Promi
 
       customEndpointModelIds = new Set();
       customModelOverrides.clear();
+      await ensureWebModelRoutes(initConfig.customEndpoint.api, initConfig.baseUrl);
       registerCustomEndpointModels(piModelRegistry, initConfig.customEndpoint.api, initConfig.baseUrl.trim(), modelEntries);
     }
 

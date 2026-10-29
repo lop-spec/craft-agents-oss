@@ -99,8 +99,10 @@ export type ModelSelectionMode = 'automaticallySyncedFromProvider' | 'userDefine
 /**
  * Protocol for custom API endpoints.
  * Determines which streaming adapter the Pi SDK uses for requests.
+ * `pi-web` (lop): web chat models (ChatGPT, Qwen, Kimi, …) served in-process by the
+ * pi-chatgpt-web project; the connection's baseUrl is that project's folder.
  */
-export type CustomEndpointApi = 'openai-completions' | 'openai-responses' | 'anthropic-messages';
+export type CustomEndpointApi = 'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'pi-web';
 
 /**
  * Custom endpoint protocol config.
@@ -165,6 +167,12 @@ export interface LlmConnection {
 
   /** Default model for this connection */
   defaultModel?: string;
+
+  /**
+   * Model for utility work (titles, call_llm, summaries) when the name-based pick would be wrong,
+   * e.g. web models where a "flash" site may be signed out. Used only if it is in `models`.
+   */
+  miniModel?: string;
 
   /**
    * Ownership mode for the model list.
@@ -265,7 +273,7 @@ export function isDeniedMiniModelId(modelId: string, piAuthProvider?: string): b
  * Used for mini agent, title generation, and mini completions.
  */
 export function getMiniModel(
-  connection: Pick<LlmConnection, 'models' | 'providerType' | 'piAuthProvider'>,
+  connection: Pick<LlmConnection, 'models' | 'providerType' | 'piAuthProvider' | 'miniModel'>,
 ): string | undefined {
   return findSmallModel(connection);
 }
@@ -300,7 +308,7 @@ export function findClaudeArtifactConnection<T extends Pick<LlmConnection, 'slug
  * Used for response summarization and API tool summarization.
  */
 export function getSummarizationModel(
-  connection: Pick<LlmConnection, 'models' | 'providerType' | 'piAuthProvider'>,
+  connection: Pick<LlmConnection, 'models' | 'providerType' | 'piAuthProvider' | 'miniModel'>,
 ): string | undefined {
   return findSmallModel(connection);
 }
@@ -318,11 +326,16 @@ export function getSummarizationModel(
  * auth flavor.
  */
 function findSmallModel(
-  connection: Pick<LlmConnection, 'models' | 'providerType' | 'piAuthProvider'>,
+  connection: Pick<LlmConnection, 'models' | 'providerType' | 'piAuthProvider' | 'miniModel'>,
 ): string | undefined {
   if (!connection.models || connection.models.length === 0) return undefined;
 
   const toId = (m: ModelDefinition | string) => typeof m === 'string' ? m : m.id;
+
+  // An explicit utility model wins when the connection offers it
+  if (connection.miniModel && connection.models.some(m => toId(m) === connection.miniModel)) {
+    return connection.miniModel;
+  }
 
   const toSearchStr = (m: ModelDefinition | string) =>
     typeof m === 'string' ? m.toLowerCase() : `${m.id} ${m.name} ${m.shortName}`.toLowerCase();
