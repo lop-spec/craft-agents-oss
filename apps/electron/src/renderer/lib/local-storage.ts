@@ -11,7 +11,7 @@ const PREFIX = 'craft-'
  */
 export const KEYS = {
   // Session column
-  sidebarVisible: 'sidebar-visible',
+  sessionColumnVisible: 'session-column-visible', // own key: the old 'sidebar-visible' hid only the removed left sidebar
   sessionListWidth: 'session-list-width',
   sessionGrouping: 'session-grouping', // 'project' | 'status' (workspace-scoped)
   collapsedSessionGroups: 'collapsed-session-groups', // Collapsed group keys in session list

@@ -136,7 +136,7 @@ function AppShellContent({
 
   // The session column: shown/hidden with ⌘B, resizable.
   const [isSidebarVisible, setIsSidebarVisible] = React.useState(() => {
-    return storage.get(storage.KEYS.sidebarVisible, !defaultCollapsed)
+    return storage.get(storage.KEYS.sessionColumnVisible, !defaultCollapsed)
   })
   const [sessionListWidth, setSessionListWidth] = React.useState(() => {
     return Math.max(SESSION_COLUMN_MIN_WIDTH, storage.get(storage.KEYS.sessionListWidth, 280))
@@ -778,7 +778,7 @@ function AppShellContent({
 
   // Persist column visibility and focus mode
   React.useEffect(() => {
-    storage.set(storage.KEYS.sidebarVisible, isSidebarVisible)
+    storage.set(storage.KEYS.sessionColumnVisible, isSidebarVisible)
   }, [isSidebarVisible])
   React.useEffect(() => {
     storage.set(storage.KEYS.focusModeEnabled, isSidebarAndNavigatorHidden)
