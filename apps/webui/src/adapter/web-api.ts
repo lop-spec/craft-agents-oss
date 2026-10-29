@@ -113,7 +113,7 @@ export function createWebApi(options: WebApiOptions): {
     openFolderDialog: () => Promise.resolve(null), // not possible in browser
 
     // System info
-    getVersions: () => ({ node: 'n/a', chrome: navigator.userAgent, electron: 'web' }),
+    getVersions: async () => ({ node: 'n/a', chrome: navigator.userAgent, electron: 'web', app: client.getServerVersion() ?? undefined }),
     getRuntimeEnvironment: () => 'web',
     getSystemWarnings: () => Promise.resolve({ vcredistMissing: false }),
     getWindowVibrancy: () => null, // browsers paint an opaque canvas
@@ -159,15 +159,6 @@ export function createWebApi(options: WebApiOptions): {
       // Open in new tab
       window.open(`${window.location.origin}/?session=${sessionId}`, '_blank')
     },
-
-    // Auto-update — not applicable to web (but expose server version for About page)
-    checkForUpdates: () => Promise.resolve({ available: false, currentVersion: client.getServerVersion() ?? '' } as any),
-    getUpdateInfo: () => Promise.resolve({ available: false, currentVersion: client.getServerVersion() ?? '' } as any),
-    installUpdate: () => Promise.resolve(),
-    dismissUpdate: () => Promise.resolve(),
-    getDismissedUpdateVersion: () => Promise.resolve(null),
-    onUpdateAvailable: () => () => {},
-    onUpdateDownloadProgress: () => () => {},
 
     // Menu events — register as keyboard shortcuts
     onMenuNewChat: () => () => {},

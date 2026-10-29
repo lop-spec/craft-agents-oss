@@ -30,7 +30,6 @@ import {
   SettingsToggle,
   SettingsInput,
 } from '@/components/settings'
-import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 
 export const meta: DetailsPageMeta = {
   navigator: 'settings',
@@ -109,19 +108,10 @@ export default function AppSettingsPage() {
   const [proxyError, setProxyError] = useState<string | undefined>()
   const [isSavingProxy, setIsSavingProxy] = useState(false)
 
-  // Auto-update state (Check Now / Update Ready only shown in Electron, not WebUI)
-  const isElectron = window.electronAPI.getRuntimeEnvironment() === 'electron'
-  const updateChecker = useUpdateChecker()
-  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false)
-
-  const handleCheckForUpdates = useCallback(async () => {
-    setIsCheckingForUpdates(true)
-    try {
-      await updateChecker.checkForUpdates()
-    } finally {
-      setIsCheckingForUpdates(false)
-    }
-  }, [updateChecker])
+  const [appVersion, setAppVersion] = useState<string | undefined>()
+  useEffect(() => {
+    window.electronAPI.getVersions().then(v => setAppVersion(v.app)).catch(() => {})
+  }, [])
 
   // Load settings on mount
   const loadSettings = useCallback(async () => {
@@ -298,48 +288,10 @@ export default function AppSettingsPage() {
       <SettingsSection title={t("settings.about.title")}>
         <SettingsCard>
           <SettingsRow label={t("settings.about.version")}>
-            <div className="flex items-center gap-2">
-              <span className="text-label text-secondary tabular-nums">
-                {updateChecker.updateInfo?.currentVersion ?? t("common.loading")}
-              </span>
-              {isElectron && updateChecker.isDownloading && updateChecker.updateInfo?.latestVersion && (
-                <div className="flex items-center gap-2 text-label-sm text-tertiary">
-                  <Spinner />
-                  <span>{t("settings.about.downloading", { version: updateChecker.updateInfo.latestVersion, percent: updateChecker.downloadProgress })}</span>
-                </div>
-              )}
-            </div>
+            <span className="text-label text-secondary tabular-nums">
+              {appVersion ?? t("common.loading")}
+            </span>
           </SettingsRow>
-          {isElectron && (
-            <SettingsRow label={t("settings.about.checkForUpdates")}>
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={handleCheckForUpdates}
-                disabled={isCheckingForUpdates}
-              >
-                {isCheckingForUpdates ? (
-                  <>
-                    <Spinner />
-                    {t("common.checking")}
-                  </>
-                ) : (
-                  t("settings.about.checkNow")
-                )}
-              </Button>
-            </SettingsRow>
-          )}
-          {isElectron && updateChecker.isReadyToInstall && updateChecker.updateInfo?.latestVersion && (
-            <SettingsRow label={t("settings.about.updateReady")}>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={updateChecker.installUpdate}
-              >
-                {t("settings.about.restartToUpdate", { version: updateChecker.updateInfo.latestVersion })}
-              </Button>
-            </SettingsRow>
-          )}
         </SettingsCard>
       </SettingsSection>
     </SettingsPage>

@@ -72,7 +72,6 @@ export interface StoredConfig {
   // Appearance
   colorTheme?: string;  // ID of selected preset theme (e.g., 'dracula', 'nord'). Default: 'default'
   // Auto-update
-  dismissedUpdateVersion?: string;  // Version that user dismissed (skip notifications for this version)
   // Input settings
   autoCapitalisation?: boolean;  // Auto-capitalize first letter when typing (default: true)
   sendMessageKey?: 'enter' | 'cmd-enter';  // Key to send messages (default: 'enter')
@@ -1627,41 +1626,6 @@ export function setColorTheme(themeId: string): void {
   const config = loadStoredConfig();
   if (!config) return;
   config.colorTheme = themeId;
-  saveConfig(config);
-}
-
-// ============================================
-// Auto-Update Dismissed Version
-// ============================================
-
-/**
- * Get the dismissed update version.
- * Returns null if no version is dismissed.
- */
-export function getDismissedUpdateVersion(): string | null {
-  const config = loadStoredConfig();
-  return config?.dismissedUpdateVersion ?? null;
-}
-
-/**
- * Set the dismissed update version.
- * Pass the version string to dismiss notifications for that version.
- */
-export function setDismissedUpdateVersion(version: string): void {
-  const config = loadStoredConfig();
-  if (!config) return;
-  config.dismissedUpdateVersion = version;
-  saveConfig(config);
-}
-
-/**
- * Clear the dismissed update version.
- * Call this when a new version is released (or on successful update).
- */
-export function clearDismissedUpdateVersion(): void {
-  const config = loadStoredConfig();
-  if (!config) return;
-  delete config.dismissedUpdateVersion;
   saveConfig(config);
 }
 

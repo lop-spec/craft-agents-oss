@@ -1,6 +1,6 @@
 /**
- * Electron-only system handlers (auto-update, dock badge, notifications, window focus, app menu).
- * The transport-agnostic system handlers (versions, shell, release notes, git, Git Bash) live in
+ * Electron-only system handlers (dock badge, notifications, window focus, app menu).
+ * The transport-agnostic system handlers (versions, shell, git, Git Bash) live in
  * `@craft-agent/server-core/handlers/rpc/system` and are registered by `registerCoreRpcHandlers`.
  */
 
@@ -10,11 +10,6 @@ import type { HandlerDeps } from './handler-deps'
 import { applyDefaultZoom } from '../zoom'
 
 export const GUI_HANDLED_CHANNELS = [
-  RPC_CHANNELS.update.CHECK,
-  RPC_CHANNELS.update.GET_INFO,
-  RPC_CHANNELS.update.INSTALL,
-  RPC_CHANNELS.update.DISMISS,
-  RPC_CHANNELS.update.GET_DISMISSED,
   RPC_CHANNELS.badge.REFRESH,
   RPC_CHANNELS.badge.SET_ICON,
   RPC_CHANNELS.window.GET_FOCUS_STATE,
@@ -40,32 +35,6 @@ export const GUI_HANDLED_CHANNELS = [
 export function registerSystemGuiHandlers(server: RpcServer, deps: HandlerDeps): void {
   const { sessionManager } = deps
   const windowManager = deps.windowManager
-
-  // Auto-update handlers
-  server.handle(RPC_CHANNELS.update.CHECK, async () => {
-    const { checkForUpdates } = await import('../auto-update')
-    return checkForUpdates({ autoDownload: true })
-  })
-
-  server.handle(RPC_CHANNELS.update.GET_INFO, async () => {
-    const { getUpdateInfo } = await import('../auto-update')
-    return getUpdateInfo()
-  })
-
-  server.handle(RPC_CHANNELS.update.INSTALL, async () => {
-    const { installUpdate } = await import('../auto-update')
-    return installUpdate()
-  })
-
-  server.handle(RPC_CHANNELS.update.DISMISS, async (_ctx, version: string) => {
-    const { setDismissedUpdateVersion } = await import('@craft-agent/shared/config')
-    setDismissedUpdateVersion(version)
-  })
-
-  server.handle(RPC_CHANNELS.update.GET_DISMISSED, async () => {
-    const { getDismissedUpdateVersion } = await import('@craft-agent/shared/config')
-    return getDismissedUpdateVersion()
-  })
 
   // Menu actions from renderer (for unified Craft menu)
   server.handle(RPC_CHANNELS.menu.QUIT, async () => {

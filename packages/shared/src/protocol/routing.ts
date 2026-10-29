@@ -85,15 +85,6 @@ export const LOCAL_ONLY_CHANNELS = new Set<string>([
   RPC_CHANNELS.theme.BROADCAST_WORKSPACE_THEME,
   RPC_CHANNELS.theme.WORKSPACE_THEME_CHANGED,
 
-  // update — local auto-update
-  RPC_CHANNELS.update.CHECK,
-  RPC_CHANNELS.update.GET_INFO,
-  RPC_CHANNELS.update.INSTALL,
-  RPC_CHANNELS.update.DISMISS,
-  RPC_CHANNELS.update.GET_DISMISSED,
-  RPC_CHANNELS.update.AVAILABLE,
-  RPC_CHANNELS.update.DOWNLOAD_PROGRESS,
-
   // badge — local dock badge
   RPC_CHANNELS.badge.REFRESH,
   RPC_CHANNELS.badge.SET_ICON,
@@ -404,10 +395,6 @@ export const REMOTE_ELIGIBLE_CHANNELS = new Set<string>([
   RPC_CHANNELS.labels.CREATE,
   RPC_CHANNELS.labels.DELETE,
   RPC_CHANNELS.labels.CHANGED,
-
-  // views — workspace UI views
-  RPC_CHANNELS.views.LIST,
-  RPC_CHANNELS.views.SAVE,
 
   // toolIcons — workspace config
   RPC_CHANNELS.toolIcons.GET_MAPPINGS,

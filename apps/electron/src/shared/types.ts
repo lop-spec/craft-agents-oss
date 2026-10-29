@@ -223,7 +223,6 @@ import type {
   McpToolsResult,
   GitBashStatus,
   ClaudeOAuthResult,
-  UpdateInfo,
   WorkspaceSettings,
   PermissionModeState,
   BrowserInstanceInfo,
@@ -380,7 +379,7 @@ export interface ElectronAPI {
   onSystemThemeChange(callback: (isDark: boolean) => void): () => void
 
   // System
-  getVersions(): { node: string; chrome: string; electron: string }
+  getVersions(): Promise<{ node: string; chrome?: string; electron?: string; app?: string }>
   /** Returns the renderer host environment without going through RPC. */
   getRuntimeEnvironment(): 'electron' | 'web'
   getHomeDir(): Promise<string>
@@ -396,15 +395,6 @@ export interface ElectronAPI {
 
   /** Check whether the server registered a handler for a given RPC channel. */
   isChannelAvailable(channel: string): boolean
-
-  // Auto-update
-  checkForUpdates(): Promise<UpdateInfo>
-  getUpdateInfo(): Promise<UpdateInfo>
-  installUpdate(): Promise<void>
-  dismissUpdate(version: string): Promise<void>
-  getDismissedUpdateVersion(): Promise<string | null>
-  onUpdateAvailable(callback: (info: UpdateInfo) => void): () => void
-  onUpdateDownloadProgress(callback: (progress: number) => void): () => void
 
   // System warnings (startup checks)
   getSystemWarnings(): Promise<{ vcredistMissing: boolean; downloadUrl?: string }>
@@ -547,10 +537,6 @@ export interface ElectronAPI {
 
   // LLM connections change listener
   onLlmConnectionsChanged(callback: () => void): () => void
-
-  // Views (workspace-scoped, stored in views.json)
-  listViews(workspaceId: string): Promise<import('@craft-agent/shared/views').ViewConfig[]>
-  saveViews(workspaceId: string, views: import('@craft-agent/shared/views').ViewConfig[]): Promise<void>
 
   // Generic workspace image loading/saving
   readWorkspaceImage(workspaceId: string, relativePath: string): Promise<string>

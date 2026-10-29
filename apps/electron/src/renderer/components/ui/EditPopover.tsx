@@ -85,7 +85,6 @@ export type EditContextKey =
   | 'edit-labels'
   | 'edit-auto-rules'
   | 'add-label'
-  | 'edit-views'
   | 'edit-tool-icons'
   | 'automation-config'
 
@@ -490,29 +489,6 @@ const EDIT_CONFIGS: Record<EditContextKey, (location: string) => EditConfig> = {
     displayLabelKey: 'editPopover.label.addLabel',
     exampleKey: 'editPopover.example.addLabel',
     overridePlaceholderKey: 'editPopover.placeholder.addLabel',
-    model: 'fast',               // Use fast model for quick config edits
-    systemPromptPreset: 'mini',   // Use focused mini prompt
-    inlineExecution: true,        // Execute inline in popover
-  }),
-
-  // Views configuration context
-  'edit-views': (location) => ({
-    context: {
-      label: 'Views Configuration',
-      filePath: `${location}/views.json`,
-      context:
-        'The user wants to edit views (dynamic, expression-based filters). ' +
-        'Views are stored in views.json at the workspace root under a "views" array. ' +
-        'Each view has: id (unique slug), name (display text), description (optional), color (optional EntityColor), expression (Filtrex string). ' +
-        'Expressions are evaluated against session context fields: name, preview, sessionStatus (also available as deprecated alias todoState), permissionMode, model, lastMessageRole, ' +
-        'lastUsedAt, createdAt, messageCount, labelCount, isFlagged, hasUnread, isProcessing, hasPendingPlan, tokenUsage.*, labels. ' +
-        'Available functions: daysSince(timestamp), contains(array, value). ' +
-        'Colors use EntityColor format: string shorthand (e.g. "orange") or { light, dark } object. ' +
-        'Confirm clearly when done.',
-    },
-    example: 'Add a "Stale" view for sessions inactive > 7 days',
-    displayLabelKey: 'editPopover.label.viewsConfiguration',
-    exampleKey: 'editPopover.example.editViews',
     model: 'fast',               // Use fast model for quick config edits
     systemPromptPreset: 'mini',   // Use focused mini prompt
     inlineExecution: true,        // Execute inline in popover

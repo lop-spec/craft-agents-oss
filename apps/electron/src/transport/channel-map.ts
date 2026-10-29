@@ -101,15 +101,6 @@ export const CHANNEL_MAP = {
   getHomeDir: invoke(RPC_CHANNELS.system.HOME_DIR),
   isDebugMode: invoke(RPC_CHANNELS.system.IS_DEBUG_MODE),
 
-  // Auto-update
-  checkForUpdates: invoke(RPC_CHANNELS.update.CHECK),
-  getUpdateInfo: invoke(RPC_CHANNELS.update.GET_INFO),
-  installUpdate: invoke(RPC_CHANNELS.update.INSTALL),
-  dismissUpdate: invoke(RPC_CHANNELS.update.DISMISS),
-  getDismissedUpdateVersion: invoke(RPC_CHANNELS.update.GET_DISMISSED),
-  onUpdateAvailable: listener(RPC_CHANNELS.update.AVAILABLE),
-  onUpdateDownloadProgress: listener(RPC_CHANNELS.update.DOWNLOAD_PROGRESS),
-
   // Shell operations
   openUrl: invoke(RPC_CHANNELS.shell.OPEN_URL),
   openFile: invoke(RPC_CHANNELS.shell.OPEN_FILE),
@@ -259,10 +250,6 @@ export const CHANNEL_MAP = {
 
   // LLM connections change listener
   onLlmConnectionsChanged: listener(RPC_CHANNELS.llmConnections.CHANGED),
-
-  // Views
-  listViews: invoke(RPC_CHANNELS.views.LIST),
-  saveViews: invoke(RPC_CHANNELS.views.SAVE),
 
   // Tool icon mappings
   getToolIconMappings: invoke(RPC_CHANNELS.toolIcons.GET_MAPPINGS),

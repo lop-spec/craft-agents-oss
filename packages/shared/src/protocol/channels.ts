@@ -133,15 +133,6 @@ export const RPC_CHANNELS = {
     HOME_DIR: 'system:homeDir',
     IS_DEBUG_MODE: 'system:isDebugMode',
   },
-  update: {
-    CHECK: 'update:check',
-    GET_INFO: 'update:getInfo',
-    INSTALL: 'update:install',
-    DISMISS: 'update:dismiss',
-    GET_DISMISSED: 'update:getDismissed',
-    AVAILABLE: 'update:available',
-    DOWNLOAD_PROGRESS: 'update:downloadProgress',
-  },
   shell: {
     OPEN_URL: 'shell:openUrl',
     OPEN_FILE: 'shell:openFile',
@@ -295,10 +286,6 @@ export const RPC_CHANNELS = {
     CREATE: 'labels:create',
     DELETE: 'labels:delete',
     CHANGED: 'labels:changed',
-  },
-  views: {
-    LIST: 'views:list',
-    SAVE: 'views:save',
   },
   toolIcons: {
     GET_MAPPINGS: 'toolIcons:getMappings',

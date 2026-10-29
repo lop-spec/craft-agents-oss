@@ -105,12 +105,11 @@ import { handleDeepLink } from './deep-link'
 import { BrowserPaneManager } from './browser-pane-manager'
 import { OAuthFlowStore } from '@craft-agent/shared/auth'
 import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-protocol'
-import log, { isDebugMode, mainLog, getLogFilePath, getMessagingGatewayLogFilePath, messagingGatewayLog, autoUpdateLog } from './logger'
+import log, { isDebugMode, mainLog, getLogFilePath, getMessagingGatewayLogFilePath, messagingGatewayLog } from './logger'
 import { setPerfEnabled, enableDebug } from '@craft-agent/shared/utils'
 import { registerPiModelResolver } from '@craft-agent/shared/config'
 import { getPiModelsForAuthProvider, getAllPiModels } from '@craft-agent/shared/config'
 import { initNotificationService, initBadgeIcon, initInstanceBadge, updateBadgeCount } from './notifications'
-import { checkForUpdatesOnLaunch, setAutoUpdateEventSink, isUpdating, setBeforeUpdateQuitHook, setBeforeUpdateInstallHook, setInstallQuitFailedHook } from './auto-update'
 import type { EventSink } from '@craft-agent/server-core/transport'
 import { validateGitBashPath, checkVCRedistInstalled } from '@craft-agent/server-core/services'
 
@@ -412,8 +411,6 @@ app.whenReady().then(async () => {
   // Re-apply proxy settings now that Electron sessions are available
   // (first call before app.whenReady only configured Node-level proxy)
   await applyConfiguredProxySettings()
-
-  // Note: electron-updater handles pending updates internally via autoInstallOnAppQuit
 
   // Application menu is created after windowManager initialization (see below)
 
@@ -1094,45 +1091,6 @@ app.whenReady().then(async () => {
       mainLog.warn('Failed to set Sentry context tags:', err)
     }
 
-    // Initialize auto-update (check immediately on launch)
-    // Skip in dev mode to avoid replacing /Applications app and launching it instead
-    if (moduleSink) setAutoUpdateEventSink(moduleSink)
-    // Snapshot multi-window state BEFORE quitAndInstall. electron-updater
-    // (Squirrel.Mac) destroys BrowserWindows between quitAndInstall and
-    // before-quit firing; saving from before-quit alone would overwrite
-    // window-state.json with an empty array.
-    setBeforeUpdateQuitHook(() => captureAndSaveWindowState('pre-update'))
-    // Before the installer hands off, run the full quit cleanup and mark the app
-    // as quitting so before-quit's guard returns early instead of cancelling
-    // Squirrel.Mac's quit with preventDefault (#891).
-    setBeforeUpdateInstallHook(async () => {
-      isQuitting = true
-      windowManager?.setAppQuitting(true)
-      await performQuitCleanup()
-    })
-    // If quitAndInstall throws after the cleanup above already ran, the process
-    // is a zombie: sessions flushed but no watchers/messaging/lock, and isQuitting
-    // makes the next quit skip the flush. The only honest recovery is a controlled
-    // relaunch into a fresh process (#891).
-    setInstallQuitFailedHook(() => {
-      mainLog.error('[auto-update] quitAndInstall failed after cleanup — relaunching')
-      dialog.showMessageBoxSync({
-        type: 'error',
-        title: 'Update failed',
-        message: 'The update could not be installed.',
-        detail: 'Craft Agents will restart now. The update will be retried on the next launch.',
-      })
-      app.relaunch()
-      app.exit(0)
-    })
-    if (app.isPackaged) {
-      checkForUpdatesOnLaunch().catch(err => {
-        mainLog.error('[auto-update] Launch check failed:', err)
-      })
-    } else {
-      mainLog.info('[auto-update] Skipping auto-update in dev mode')
-    }
-
     // Process pending deep link from cold start
     if (pendingDeepLink) {
       mainLog.info('Processing pending deep link:', pendingDeepLink)
@@ -1180,35 +1138,22 @@ app.on('window-all-closed', () => {
 // Track if we're in the process of quitting (to avoid re-entry)
 let isQuitting = false
 
-/**
- * Capture the current multi-window state and persist it to disk.
- * Called from two sites:
- *   - before-quit (normal quit path, reason='before-quit')
- *   - installUpdate hook (auto-update path, reason='pre-update'), because
- *     electron-updater destroys BrowserWindows between quitAndInstall and
- *     before-quit firing — by the time before-quit runs, getWindowStates()
- *     returns an empty array and would clobber the on-disk state.
- * Returns the number of windows saved, or -1 if windowManager isn't ready.
- */
-function captureAndSaveWindowState(reason: 'before-quit' | 'pre-update'): number {
-  if (!windowManager) return -1
+/** Capture the current multi-window state and persist it to disk (before-quit). */
+function captureAndSaveWindowState(): void {
+  if (!windowManager) return
   const windows = windowManager.getWindowStates()
   const focusedWindow = BrowserWindow.getFocusedWindow()
   const lastFocusedWorkspaceId = focusedWindow
     ? windowManager.getWorkspaceForWindow(focusedWindow.webContents.id) ?? undefined
     : undefined
   saveWindowState({ windows, lastFocusedWorkspaceId })
-  mainLog.info('[window-state] saved', { windowCount: windows.length, reason })
-  return windows.length
+  mainLog.info('[window-state] saved', { windowCount: windows.length })
 }
 
-// Flush sessions and release all quit-time resources. Shared by the normal quit
-// path (before-quit) and the update-install handoff (beforeUpdateInstallHook), so
-// the two cleanup sequences can't drift (#891).
+// Flush sessions and release all quit-time resources (before-quit).
 let quitCleanupRan = false
 async function performQuitCleanup(): Promise<void> {
-  // Idempotent: a failed update install may retry, and the update path plus a
-  // subsequent quit must not dispose already-disposed services.
+  // Idempotent: a second quit must not dispose already-disposed services.
   if (quitCleanupRan) {
     mainLog.info('Quit cleanup already ran, skipping')
     return
@@ -1265,38 +1210,9 @@ app.on('before-quit', async (event) => {
   // Ensure Cmd+Q/app quit bypasses layered window close interception (Cmd+W behavior).
   windowManager?.setAppQuitting(true)
 
-  if (windowManager) {
-    const windows = windowManager.getWindowStates()
-    // Empty-snapshot guard: during update-quit, electron-updater has already
-    // destroyed all BrowserWindows by the time before-quit fires. The pre-update
-    // hook already saved the real state — don't let this late save overwrite it.
-    if (windows.length === 0 && isUpdating()) {
-      mainLog.warn('[window-state] skip save: empty snapshot during update-quit (pre-update snapshot wins)')
-    } else {
-      captureAndSaveWindowState('before-quit')
-    }
-    // Diagnostic correlation with installUpdate's [update-flow] log. During an
-    // update-quit, record it to the dedicated always-on auto-update log (#891)
-    // so the install/quit handoff is diagnosable in production; normal quits
-    // stay on the debug-only main log.
-    const isUpdateQuit = isUpdating()
-    const beforeQuitSave = {
-      windowCount: windows.length,
-      electronWindowCount: BrowserWindow.getAllWindows().length,
-      isUpdating: isUpdateQuit,
-      reason: isUpdateQuit ? 'update-quit' : 'user-quit',
-    }
-    if (isUpdateQuit) {
-      autoUpdateLog.info('before-quit save', beforeQuitSave)
-    } else {
-      mainLog.info('[update-flow] before-quit save', beforeQuitSave)
-    }
-  }
+  captureAndSaveWindowState()
 
-  // Normal quit: flush + clean up, then exit. The update-install path does NOT
-  // reach here — installUpdate's beforeUpdateInstallHook already ran
-  // performQuitCleanup and set isQuitting, so the guard at the top returns early
-  // and Squirrel.Mac's quit proceeds uninterrupted so the update installs (#891).
+  // Flush + clean up, then exit.
   if (sessionManager) {
     event.preventDefault()
     await performQuitCleanup()
