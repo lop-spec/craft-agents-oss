@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next"
 import { toast } from 'sonner'
 import { checkAttachmentSizes, DEFAULT_MAX_MESSAGE_BYTES, formatAttachmentBytes, type AttachmentSizeInput, type AttachmentSizeProblem } from '@craft-agent/shared/protocol'
 import {
-  Paperclip,
+  Image as ImageIcon,
   ChevronUp,
 } from 'lucide-react'
-import { Icon_Home, consoleSnippetCommand } from '@craft-agent/ui'
+import { consoleSnippetCommand } from '@craft-agent/ui'
 
 import { IconButton } from '@/components/ui/button'
 import {
@@ -47,8 +47,6 @@ import {
 } from '@config/llm-connections'
 import { useOptionalAppShellContext } from '@/context/AppShellContext'
 import { EditPopover, getEditConfig } from '@/components/ui/EditPopover'
-import { CompactWorkingDirectorySelector } from '@/components/ui/CompactWorkingDirectorySelector'
-import { FreeFormInputContextBadge } from './FreeFormInputContextBadge'
 import { derivePickerMode } from './picker-mode'
 import type { FileAttachment, LoadedSource, LoadedSkill } from '../../../../shared/types'
 import { isPermissionMode, planExecutionMode, type PermissionMode } from '@craft-agent/shared/agent/modes'
@@ -64,8 +62,6 @@ import {
   getRecentWorkingDirs,
   addRecentWorkingDir,
 } from './working-directory-history'
-import { WorkingDirectorySelector, formatPathForDisplay } from './WorkingDirectorySelector'
-import { CompactPermissionModeSelector } from './CompactPermissionModeSelector'
 import { CompactModelSelector } from './CompactModelSelector'
 import {
   groupConnectionsByProvider,
@@ -73,11 +69,8 @@ import {
 } from './model-picker-helpers'
 import { useModelVisionToggle } from './useModelVisionToggle'
 import { ComposerSourcesChip } from './ComposerSourcesChip'
-import { ComposerCodingChip } from './ComposerCodingChip'
-import { useDirectoryPicker } from '@/hooks/useDirectoryPicker'
-import { ServerDirectoryBrowser } from '@/components/ServerDirectoryBrowser'
 import { ComposerModelMenu } from './ComposerModelMenu'
-import { ComposerModeChip } from './ComposerModeChip'
+import { ComposerThinkingChip } from './ComposerThinkingChip'
 import { ContextUsageChip } from './ContextUsageChip'
 import { FollowUpChips } from './FollowUpChips'
 import { SendButton } from './SendButton'
@@ -139,12 +132,6 @@ export interface FreeFormInputProps {
   onPermissionModeChange?: (mode: PermissionMode) => void
   /** Enabled permission modes for Shift+Tab cycling (min 2 modes) */
   enabledModes?: PermissionMode[]
-  /**
-   * Desktop: show the permission-mode chip in the toolbar (it moved there from the badge row
-   * above the composer). Compact always uses the drawer selector when `onPermissionModeChange`
-   * is set.
-   */
-  showPermissionModeChip?: boolean
   // Controlled input value (for persisting across mode switches and conversation changes)
   /** Current input value - if provided, component becomes controlled */
   inputValue?: string
@@ -195,13 +182,6 @@ export interface FreeFormInputProps {
   disableSend?: boolean
   /** Whether the session is empty (no messages yet) - affects context badge prominence */
   isEmptySession?: boolean
-  // Coding mode (session-level, fixed once the conversation starts)
-  /** Coding mode is on: lean coding prompt and session tools */
-  codingMode?: boolean
-  /** Toggle coding mode (only before the first message) */
-  onCodingModeChange?: (enabled: boolean) => void
-  /** Continue a started session in a new one with coding mode set to `enabled` */
-  onContinueWithCodingMode?: (enabled: boolean) => void
   /** Context status for showing compaction indicator and token usage */
   contextStatus?: ContextStatus
   /** Follow-up annotations shown as context chips above the input */
@@ -267,7 +247,6 @@ export function FreeFormInput({
   previousPermissionMode,
   onPermissionModeChange,
   enabledModes = ['safe', 'ask', 'allow-all'],
-  showPermissionModeChip = false,
   inputValue,
   onInputChange,
   attachmentsValue,
@@ -291,9 +270,6 @@ export function FreeFormInput({
   currentSessionStatus,
   disableSend = false,
   isEmptySession = false,
-  codingMode = false,
-  onCodingModeChange,
-  onContinueWithCodingMode,
   contextStatus,
   followUpItems = [],
   onFollowUpClick,
@@ -918,23 +894,6 @@ export function FreeFormInput({
   // Inline slash command hook (modes, features, and folders); Guarded only while it is offered
   const availableModes = useAvailablePermissionModes(permissionMode)
 
-  // Coding mode is about a folder's code: turning it on asks for one (the chip's popover offers a new
-  // worktree or an existing folder; "existing" opens this picker)
-  const codingFolderPicker = useDirectoryPicker(React.useCallback((path: string) => {
-    onWorkingDirectoryChange?.(path)
-  }, [onWorkingDirectoryChange]))
-  const { pickDirectory: pickCodingFolder } = codingFolderPicker
-  const hasWorkingFolder = !!workingDirectory && workingDirectory !== sessionFolderPath
-  const handleCodingModeToggle = React.useCallback((enabled: boolean) => {
-    onCodingModeChange?.(enabled)
-  }, [onCodingModeChange])
-  const codingWorkspaceSetup = React.useMemo(() => (onWorkingDirectoryChange ? {
-    workspaceId,
-    sessionId,
-    currentFolder: hasWorkingFolder ? workingDirectory : undefined,
-    onUseExistingFolder: pickCodingFolder,
-    onWorktreeCreated: onWorkingDirectoryChange,
-  } : undefined), [onWorkingDirectoryChange, workspaceId, sessionId, hasWorkingFolder, workingDirectory, pickCodingFolder])
   const inlineSlash = useInlineSlashCommand({
     inputRef: richInputRef,
     modes: availableModes,
@@ -1771,7 +1730,7 @@ export function FreeFormInput({
               : t("chat.attachFiles")
             }
             tooltip={t("chat.attachFilesTooltip")}
-            icon={<Paperclip />}
+            icon={<ImageIcon />}
             onClick={handleAttachClick}
             disabled={disabled}
             className="input-toolbar-btn"
@@ -1786,43 +1745,11 @@ export function FreeFormInput({
               onToggleSlug={handleToggleSourceSlug}
               open={sourceDropdownOpen}
               setOpen={setSourceDropdownOpen}
-              isEmptySession={isEmptySession}
               disabled={disabled}
               buttonRef={sourceButtonRef}
             />
           )}
 
-          {/* Working directory chip */}
-          {onWorkingDirectoryChange && (compactMode ? (
-            <CompactWorkingDirectorySelector
-              workingDirectory={workingDirectory}
-              onWorkingDirectoryChange={onWorkingDirectoryChange}
-              sessionFolderPath={sessionFolderPath}
-              isEmptySession={false}
-              workspaceId={workspaceId}
-            />
-          ) : (
-            <WorkingDirectoryBadge
-              workingDirectory={workingDirectory}
-              onWorkingDirectoryChange={onWorkingDirectoryChange}
-              sessionFolderPath={sessionFolderPath}
-              isEmptySession={isEmptySession}
-              workspaceId={workspaceId}
-            />
-          ))}
-
-          {/* Coding mode chip — next to the folder: the mode is about the folder's code */}
-          {onCodingModeChange && onContinueWithCodingMode && (
-            <ComposerCodingChip
-              enabled={codingMode}
-              locked={!isEmptySession}
-              compact={compactMode}
-              disabled={disabled}
-              onToggle={handleCodingModeToggle}
-              onContinueInNewSession={onContinueWithCodingMode}
-              workspaceSetup={codingWorkspaceSetup}
-            />
-          )}
           </div>
 
           {/* Spacer — doubles as a tap / hover target while the input is
@@ -1842,26 +1769,21 @@ export function FreeFormInput({
             <div className="flex-1" />
           )}
 
-          {/* Right: mode · model absorb the squeeze — the model label truncates, and in narrow
-              panels the mode chip folds to its icon. Context and Send sit outside this group and
-              never shrink, so Send stays inside the card (craft-agents-oss#798). The 4px inset
+          {/* Context usage meter (pi-web's quota slot). Percent text is truthful and may exceed 100%;
+              action requires explicit canCompact. */}
+          <ContextUsageChip
+            display={contextDisplay}
+            labels={contextLabels}
+            isProcessing={isProcessing}
+            showMeter={!compactMode}
+            onCompact={() => onSubmit('/compact', [])}
+          />
+          <span aria-hidden="true" className="mx-0.5 h-4 w-px shrink-0 bg-separator" />
+
+          {/* Right: model · reasoning. The model label truncates first; Send sits outside this group
+              and never shrinks, so it stays inside the card (craft-agents-oss#798). The 4px inset
               keeps focus rings visible inside the clipping group. */}
           <div className="-m-1 flex min-w-0 shrink items-center gap-1 overflow-hidden p-1">
-          {compactMode
-            ? onPermissionModeChange && (
-              <CompactPermissionModeSelector
-                permissionMode={permissionMode}
-                onPermissionModeChange={onPermissionModeChange}
-              />
-            )
-            : showPermissionModeChip && (
-              <ComposerModeChip
-                permissionMode={permissionMode}
-                onPermissionModeChange={onPermissionModeChange}
-                sessionId={sessionId}
-              />
-            )}
-
           {/* Model/Connection selector — drawer in compact (when enabled), dropdown on desktop */}
           {compactMode ? (
             enableCompactModelPicker && (
@@ -1896,25 +1818,19 @@ export function FreeFormInput({
               onModelChange={onModelChange}
               onConnectionChange={onConnectionChange}
               onToggleVision={handleToggleModelVision}
-              thinkingLevel={thinkingLevel}
-              thinkingDisabled={thinkingDisabled}
-              onThinkingLevelChange={onThinkingLevelChange}
               contextDisplay={contextDisplay}
               contextLabels={contextLabels}
               isCompacting={contextStatus?.isCompacting}
             />
           )}
-
+          {!compactMode && (
+            <ComposerThinkingChip
+              thinkingLevel={thinkingLevel}
+              disabled={thinkingDisabled}
+              onThinkingLevelChange={onThinkingLevelChange}
+            />
+          )}
           </div>
-
-          {/* Context usage meter. Percent text is truthful and may exceed 100%; action requires explicit canCompact. */}
-          <ContextUsageChip
-            display={contextDisplay}
-            labels={contextLabels}
-            isProcessing={isProcessing}
-            showMeter={!compactMode}
-            onCompact={() => onSubmit('/compact', [])}
-          />
 
           {/* Send/Stop Button - Always show stop when processing */}
           <SendButton
@@ -1925,65 +1841,6 @@ export function FreeFormInput({
           </div>
         </div>
       </div>
-      {/* Remote servers: folder browser for the coding-mode folder prompt (local uses the native dialog) */}
-      <ServerDirectoryBrowser
-        open={codingFolderPicker.showServerBrowser}
-        mode={codingFolderPicker.serverBrowserMode}
-        onSelect={codingFolderPicker.confirmServerBrowser}
-        onCancel={codingFolderPicker.cancelServerBrowser}
-      />
     </form>
-  )
-}
-
-/**
- * WorkingDirectoryBadge - chat-input trigger for the shared WorkingDirectorySelector.
- *
- * Renders the context-badge trigger; the picker popover + folder state machine
- * live in {@link WorkingDirectorySelector} so the Tasks editor reuses the same
- * picker (and can supply its own trigger).
- */
-function WorkingDirectoryBadge({
-  workingDirectory,
-  onWorkingDirectoryChange,
-  sessionFolderPath,
-  isEmptySession = false,
-  workspaceId,
-}: {
-  workingDirectory?: string
-  onWorkingDirectoryChange: (path: string) => void
-  sessionFolderPath?: string
-  isEmptySession?: boolean
-  workspaceId?: string
-}) {
-  const { t } = useTranslation()
-  return (
-    <WorkingDirectorySelector
-      workingDirectory={workingDirectory}
-      onWorkingDirectoryChange={onWorkingDirectoryChange}
-      sessionFolderPath={sessionFolderPath}
-      workspaceId={workspaceId}
-      renderTrigger={({ open, hasFolder, folderName, workingDirectory: wd, homeDir, gitBranch }) => (
-        <span className="shrink min-w-0 overflow-hidden">
-          <FreeFormInputContextBadge
-            icon={<Icon_Home className="h-4 w-4" />}
-            label={folderName ?? t('chat.workInFolder')}
-            isExpanded={isEmptySession}
-            hasSelection={hasFolder}
-            showChevron={true}
-            isOpen={open}
-            tooltip={
-              hasFolder ? (
-                <span className="flex flex-col gap-0.5">
-                  <span className="font-medium">{t("chat.workingDirectory")}</span>
-                  <span className="text-label-sm text-secondary">{formatPathForDisplay(wd, homeDir)}</span>
-                  {gitBranch && <span className="text-label-sm text-secondary">{t("chat.onBranch", { branch: gitBranch })}</span>}
-                </span>
-              ) : t("chat.chooseWorkingDirectory")
-            }
-          />
-        </span>
-      )}
-    />
   )
 }

@@ -26,11 +26,11 @@ describe('route-parser: automations routes', () => {
     expect(result!.details).toBeNull()
   })
 
-  it('parses "automations/agentic" as automations with agentic filter', () => {
+  it('parses the old "automations/agentic" as the event filter', () => {
     const result = parseCompoundRoute('automations/agentic')
     expect(result).not.toBeNull()
     expect(result!.navigator).toBe('automations')
-    expect(result!.automationFilter).toEqual({ kind: 'type', automationType: 'agentic' })
+    expect(result!.automationFilter).toEqual({ kind: 'type', automationType: 'event' })
     expect(result!.details).toBeNull()
   })
 

@@ -237,7 +237,8 @@ export interface AutomationListItem {
 // Filter
 // ============================================================================
 
-export type AutomationFilterKind = 'all' | 'app' | 'agent' | 'scheduled'
+/** `event` = everything not on a schedule: app and agent events alike */
+export type AutomationFilterKind = 'all' | 'event' | 'scheduled'
 
 export interface AutomationListFilter {
   kind: AutomationFilterKind
@@ -246,8 +247,7 @@ export interface AutomationListFilter {
 /** Maps task type (from route) to AutomationFilterKind for the list panel */
 export const AUTOMATION_TYPE_TO_FILTER_KIND: Record<string, AutomationFilterKind> = {
   scheduled: 'scheduled',
-  event: 'app',
-  agentic: 'agent',
+  event: 'event',
 }
 
 // ============================================================================

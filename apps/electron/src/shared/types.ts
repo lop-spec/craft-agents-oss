@@ -906,10 +906,6 @@ export type RightSidebarPanel =
  */
 export type SessionFilter =
   | { kind: 'allSessions' }
-  | { kind: 'flagged' }
-  | { kind: 'state'; stateId: string }
-  | { kind: 'label'; labelId: string }
-  | { kind: 'view'; viewId: string }
   | { kind: 'archived' }
 
 /**
@@ -926,12 +922,6 @@ export interface SessionsNavigationState {
   filter: SessionFilter
   details: { type: 'session'; sessionId: string } | null
   rightSidebar?: RightSidebarPanel
-  /**
-   * Presentation mode for the sessions navigator. `'board'` renders the Kanban
-   * board (all sessions, grouped into To Do / In Progress / Done columns) in the
-   * content area instead of the list + chat. Absent/`'list'` is the default.
-   */
-  viewMode?: 'list' | 'board'
 }
 
 /**
@@ -947,7 +937,8 @@ export interface SourceFilter {
  */
 export interface AutomationFilter {
   kind: 'type'
-  automationType: 'scheduled' | 'event' | 'agentic'
+  /** `event` covers app and agent events */
+  automationType: 'scheduled' | 'event'
 }
 
 /**
@@ -1002,19 +993,6 @@ export interface ProjectsNavigationState {
 }
 
 /**
- * Pages navigation state
- *
- * Bare `pages` (details: null) shows the full-width library grid — it never
- * auto-selects a page. Like board mode, the middle navigator collapses to
- * zero width while a pages route is active.
- */
-export interface PagesNavigationState {
-  navigator: 'pages'
-  details: { type: 'page'; pageSlug: string } | null
-  rightSidebar?: RightSidebarPanel
-}
-
-/**
  * Unified navigation state
  */
 export type NavigationState =
@@ -1024,7 +1002,6 @@ export type NavigationState =
   | SkillsNavigationState
   | AutomationsNavigationState
   | ProjectsNavigationState
-  | PagesNavigationState
 
 export const isSessionsNavigation = (
   state: NavigationState
@@ -1049,10 +1026,6 @@ export const isAutomationsNavigation = (
 export const isProjectsNavigation = (
   state: NavigationState
 ): state is ProjectsNavigationState => state.navigator === 'projects'
-
-export const isPagesNavigation = (
-  state: NavigationState
-): state is PagesNavigationState => state.navigator === 'pages'
 
 export const DEFAULT_NAVIGATION_STATE: NavigationState = {
   navigator: 'sessions',
@@ -1085,23 +1058,12 @@ export const getNavigationStateKey = (state: NavigationState): string => {
     }
     return 'projects'
   }
-  if (state.navigator === 'pages') {
-    if (state.details?.type === 'page') {
-      return `pages/page/${state.details.pageSlug}`
-    }
-    return 'pages'
-  }
   if (state.navigator === 'settings') {
     if (state.subpage === null) return 'settings'
     return `settings:${state.subpage}`
   }
   // Chats
-  const f = state.filter
-  let base: string
-  if (f.kind === 'state') base = `state:${f.stateId}`
-  else if (f.kind === 'label') base = `label:${f.labelId}`
-  else if (f.kind === 'view') base = `view:${f.viewId}`
-  else base = f.kind
+  const base = state.filter.kind
   if (state.details) {
     return `${base}/chat/${state.details.sessionId}`
   }
@@ -1149,16 +1111,6 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
     return { navigator: 'projects', details: null }
   }
 
-  // Handle pages
-  if (key === 'pages') return { navigator: 'pages', details: null }
-  if (key.startsWith('pages/page/')) {
-    const pageSlug = key.slice(11)
-    if (pageSlug) {
-      return { navigator: 'pages', details: { type: 'page', pageSlug } }
-    }
-    return { navigator: 'pages', details: null }
-  }
-
   // Handle settings
   if (key === 'settings') return { navigator: 'settings', subpage: null }
   if (key.startsWith('settings:')) {
@@ -1172,23 +1124,8 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
   const parseSessionsKey = (filterKey: string, sessionId?: string): NavigationState | null => {
     let filter: SessionFilter
     if (filterKey === 'allSessions') filter = { kind: 'allSessions' }
-    else if (filterKey === 'flagged') filter = { kind: 'flagged' }
     else if (filterKey === 'archived') filter = { kind: 'archived' }
-    else if (filterKey.startsWith('state:')) {
-      const stateId = filterKey.slice(6)
-      if (!stateId) return null
-      filter = { kind: 'state', stateId }
-    } else if (filterKey.startsWith('label:')) {
-      const labelId = filterKey.slice(6)
-      if (!labelId) return null
-      filter = { kind: 'label', labelId }
-    } else if (filterKey.startsWith('view:')) {
-      const viewId = filterKey.slice(5)
-      if (!viewId) return null
-      filter = { kind: 'view', viewId }
-    } else {
-      return null
-    }
+    else return null
     return {
       navigator: 'sessions',
       filter,

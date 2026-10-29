@@ -2,110 +2,37 @@ import * as React from "react"
 import { useTranslation, Trans } from "react-i18next"
 import { useRef, useState, useEffect, useCallback, useMemo } from "react"
 import { useAtomValue, useStore } from "jotai"
-import { motion, AnimatePresence } from "motion/react"
-import {
-  Archive,
-  Settings,
-  ChevronRight,
-  ChevronDown,
-  MoreHorizontal,
-  RotateCw,
-  Flag,
-  ListFilter,
-  Tag,
-  Check,
-  X,
-  Search,
-  Plus,
-  Trash2,
-  DatabaseZap,
-  Zap,
-  Inbox,
-  Globe,
-  FolderOpen,
-  Cake,
-  Calendar,
-  Layers,
-  ListTodo,
-  Clock,
-  Radio,
-  Bot,
-  Info,
-  MailOpen,
-  FolderKanban,
-  PanelsTopLeft,
-} from "lucide-react"
-// SessionStatusIcons no longer used - icons come from dynamic sessionStatuses
-import { SourceAvatar } from "@/components/ui/source-avatar"
+import { Plus } from "lucide-react"
 import { TopBar } from "./TopBar"
-import { SquarePenRounded } from "../icons/SquarePenRounded"
-import { McpIcon } from "../icons/McpIcon"
-import { cn } from "@/lib/utils"
-import { isMac } from "@/lib/platform"
 import { Button } from "@/components/ui/button"
 import { HeaderIconButton } from "@/components/ui/HeaderIconButton"
-import { resolveInheritedFilterParams, type FilterMode } from "./inherited-filter-params"
-import { Separator } from "@/components/ui/separator"
-import { Tooltip, TooltipTrigger, TooltipContent, DocumentFormattedMarkdownOverlay } from "@craft-agent/ui"
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  StyledDropdownMenuContent,
-  StyledDropdownMenuItem,
-  StyledDropdownMenuSeparator,
-  StyledDropdownMenuSubTrigger,
-  StyledDropdownMenuSubContent,
-} from "@/components/ui/styled-dropdown"
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  StyledContextMenuContent,
-} from "@/components/ui/styled-context-menu"
-import { ContextMenuProvider } from "@/components/ui/menu-context"
-import { SidebarMenu } from "./SidebarMenu"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { FadingText } from "@/components/ui/fading-text"
-import { SessionList, type ChatGroupingMode } from "./SessionList"
-import { MainContentPanel } from "./MainContentPanel"
-import { BoardListToggle } from "./kanban/BoardListToggle"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@craft-agent/ui"
+import { SessionList } from "./SessionList"
 import { PanelStackContainer } from "./PanelStackContainer"
-import { CompactSessionListFilter } from "./CompactSessionListFilter"
 import type { ChatDisplayHandle } from "./ChatDisplay"
-import type { SidebarItem as SidebarNavItem } from "./LeftSidebar"
-import { SidebarPane } from "./SidebarPane"
-import { SessionFilterMenu } from "./SessionFilterMenu"
 import { ShellResizeHandle } from "./ShellResizeHandle"
+import { SessionNavHeader, CapabilityNavHeader, SessionNavFooter, type SessionGrouping, type NavSection } from "./SessionNav"
 import { useSession } from "@/hooks/useSession"
 import { ensureSessionMessagesLoadedAtom } from "@/atoms/sessions"
 import { AppShellProvider, WORKSPACE_SETTINGS_CHANGED_EVENT, type AppShellContextType } from "@/context/AppShellContext"
 import { EscapeInterruptProvider, useEscapeInterrupt } from "@/context/EscapeInterruptContext"
 import { useTheme } from "@/context/ThemeContext"
-import { getResizeGradientStyle } from "@/hooks/useResizeGradient"
 import { useAction, useActionLabel } from "@/actions"
-import { useFocusZone } from "@/hooks/keyboard"
 import { useFocusContext } from "@/context/FocusContext"
-import { getSessionTitle } from "@/utils/session"
 import { useSetAtom } from "jotai"
-import type { Session, Workspace, FileAttachment, PermissionRequest, LoadedSource, LoadedSkill, PermissionMode, SourceFilter, AutomationFilter } from "../../../shared/types"
-import { sessionMetaMapAtom, sendToWorkspaceAtom, type SessionMeta } from "@/atoms/sessions"
+import type { LoadedSource, LoadedSkill, PermissionMode, AutomationFilter } from "../../../shared/types"
+import { sessionMetaMapAtom, sendToWorkspaceAtom } from "@/atoms/sessions"
 import { sourcesAtom } from "@/atoms/sources"
 import { DECISION_SETTINGS_CHANGED_EVENT, guardedModeAvailableAtom } from "@/atoms/permission-modes"
 import { DEFAULT_PERMISSION_MODES } from "@craft-agent/shared/agent/modes"
 import { RtkUpdatePrompt } from "@/components/RtkUpdateDialog"
 import { skillsAtom } from "@/atoms/skills"
 import { panelStackAtom, panelCountAtom, focusedPanelIdAtom, focusedSessionIdAtom, focusNextPanelAtom, focusPrevPanelAtom, parseSessionIdFromRoute } from "@/atoms/panel-stack"
-import { type SessionStatusId, type SessionStatus, statusConfigsToSessionStatuses } from "@/config/session-status-config"
+import { type SessionStatus, statusConfigsToSessionStatuses } from "@/config/session-status-config"
 import { useStatuses } from "@/hooks/useStatuses"
 import { useLabels } from "@/hooks/useLabels"
-import { useViews } from "@/hooks/useViews"
 import { useContainerWidth } from "@/hooks/useContainerWidth"
-import { LabelIcon, LabelValueTypeIcon } from "@/components/ui/label-icon"
-import { filterSessionStatuses as filterLabelMenuStates } from "@/components/ui/label-menu"
-import { createLabelMenuItems, filterItems as filterLabelMenuItems, type LabelMenuItem } from "@/components/ui/label-menu-utils"
-import { buildLabelTree, getDescendantIds, getLabelDisplayName, flattenLabels, extractLabelId, findLabelById, sortLabelsForDisplay, matchesLabelFilter } from "@craft-agent/shared/labels"
-import type { LabelConfig, LabelTreeNode } from "@craft-agent/shared/labels"
-import { resolveEntityColor } from "@craft-agent/shared/colors"
+import { sortLabelsForDisplay } from "@craft-agent/shared/labels"
 import * as storage from "@/lib/local-storage"
 import { toast } from "sonner"
 import { navigate, routes } from "@/lib/navigate"
@@ -117,51 +44,36 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
   isAutomationsNavigation,
-  isProjectsNavigation,
-  isPagesNavigation,
-  type NavigationState,
 } from "@/contexts/NavigationContext"
 import type { SettingsSubpage } from "../../../shared/types"
 import { SourcesListPanel } from "./SourcesListPanel"
 import { SkillsListPanel } from "./SkillsListPanel"
 import { AutomationsListPanel } from "../automations/AutomationsListPanel"
-import { ProjectsListPanel } from "./ProjectsListPanel"
-import { APP_EVENTS, AGENT_EVENTS, type AutomationFilterKind, AUTOMATION_TYPE_TO_FILTER_KIND } from "../automations/types"
+import { AUTOMATION_TYPE_TO_FILTER_KIND } from "../automations/types"
 import { useAutomations } from "@/hooks/useAutomations"
 import { useProjects } from "@/hooks/useProjects"
-import { usePages } from "@/hooks/usePages"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { PanelHeader } from "./PanelHeader"
 import { FabNewChat } from "./FabNewChat"
 import { SendToWorkspaceDialog } from "./SendToWorkspaceDialog"
 import { CreateProjectDialog } from "../projects/CreateProjectDialog"
 import { MessagingDialogHost } from "@/components/messaging/MessagingDialogHost"
-import { EditPopover, getEditConfig, type EditContextKey } from "@/components/ui/EditPopover"
+import { EditPopover, getEditConfig } from "@/components/ui/EditPopover"
 import SettingsNavigator from "@/pages/settings/SettingsNavigator"
 import {
   PANEL_GAP,
   PANEL_EDGE_INSET,
   PANEL_SASH_HALF_HIT_WIDTH,
-  PANEL_SASH_HIT_WIDTH,
-  PANEL_SASH_LINE_WIDTH,
-  PANEL_STACK_VERTICAL_OVERFLOW,
-  RADIUS_EDGE,
-  RADIUS_INNER,
 } from "./panel-constants"
 import { hasOpenOverlay } from "@/lib/overlay-detection"
 import { clearSourceIconCaches } from "@/lib/icon-cache"
 import { dispatchFocusInputEvent } from "./input/focus-input-events"
+import { cn } from "@/lib/utils"
 
 /**
  * AppShellProps - Minimal props interface for AppShell component
  *
  * Data and callbacks come via contextValue (AppShellContextType).
  * Only UI-specific state is passed as separate props.
- *
- * Adding new features:
- * 1. Add to AppShellContextType in context/AppShellContext.tsx
- * 2. Update App.tsx to include in contextValue
- * 3. Use via useAppShellContext() hook in child components
  */
 interface AppShellProps {
   /** All data and callbacks - passed directly to AppShellProvider */
@@ -170,20 +82,18 @@ interface AppShellProps {
   defaultLayout?: number[]
   defaultCollapsed?: boolean
   menuNewChatTrigger?: number
-  /** Focused mode - hides sidebars, shows only the chat content */
+  /** Focused mode - hides the session column, shows only the chat content */
   isFocusedMode?: boolean
 }
 
+/** The session column never gets narrower than its header (toggle + actions; 新建 drops its text when tight). */
+const SESSION_COLUMN_MIN_WIDTH = 240
+const SESSION_COLUMN_MAX_WIDTH = 480
 
 /**
- * AppShell - Main 3-panel layout container
- *
- * Layout: [LeftSidebar 20%] | [NavigatorPanel 32%] | [MainContentPanel 48%]
- *
- * Session Filters:
- * - 'allSessions': Shows all sessions
- * - 'flagged': Shows flagged sessions
- * - 'state': Shows sessions with a specific todo state
+ * AppShell - Layout container (lop): ONE left column — sessions grouped by project or by
+ * status, switched in its header — then the content panels. MCP, skills, automations and
+ * settings open in the same column from its footer.
  */
 export function AppShell(props: AppShellProps) {
   // Wrap with EscapeInterruptProvider so AppShellContent can use useEscapeInterrupt
@@ -194,18 +104,12 @@ export function AppShell(props: AppShellProps) {
   )
 }
 
-/**
- * AppShellContent - Inner component that contains all the AppShell logic
- * Separated to allow useEscapeInterrupt hook to work (must be inside provider)
- */
 function AppShellContent({
   contextValue,
-  defaultLayout = [20, 32, 48],
   defaultCollapsed = false,
   menuNewChatTrigger,
   isFocusedMode = false,
 }: AppShellProps) {
-  // Destructure commonly used values from context
   // Note: sessions is NOT destructured here - we use sessionMetaMapAtom instead
   // to prevent closures from retaining the full messages array
   const {
@@ -219,83 +123,55 @@ function AppShellContent({
     onUnflagSession,
     onArchiveSession,
     onUnarchiveSession,
-    onMarkSessionRead,
     onMarkSessionUnread,
     onSessionStatusChange,
     onRenameSession,
     onOpenSettings,
     onOpenKeyboardShortcuts,
     onOpenStoredUserPreferences,
-    onReset,
-    onSendMessage,
-    openNewChat,
     pendingPermissions,
   } = contextValue
 
   const { t } = useTranslation()
 
-  // Get hotkey labels from centralized action registry
-  const newChatHotkey = useActionLabel('app.newChat').hotkey
-
+  // The session column: shown/hidden with ⌘B, resizable.
   const [isSidebarVisible, setIsSidebarVisible] = React.useState(() => {
     return storage.get(storage.KEYS.sidebarVisible, !defaultCollapsed)
   })
-  const [sidebarWidth, setSidebarWidth] = React.useState(() => {
-    return storage.get(storage.KEYS.sidebarWidth, 232)
-  })
-  // Session list width in pixels (min 240, max 480)
   const [sessionListWidth, setSessionListWidth] = React.useState(() => {
-    return storage.get(storage.KEYS.sessionListWidth, 304)
+    return Math.max(SESSION_COLUMN_MIN_WIDTH, storage.get(storage.KEYS.sessionListWidth, 280))
   })
 
-  // Hides both sidebar and navigator (CMD+. toggle)
+  // Focus mode hides the session column (CMD+. toggle).
   // Seed from either focused window param or persisted preference, then keep it toggleable.
   const [isSidebarAndNavigatorHidden, setIsSidebarAndNavigatorHidden] = React.useState(() => {
     return isFocusedMode || storage.get(storage.KEYS.focusModeEnabled, false)
   })
 
-  // Auto-compact mode: shell width below mobile threshold hides sidebar/navigator
-  // and switches to single-panel mode. Works in both webui (narrow viewport) and
-  // desktop (narrow window or small screen).
+  // Auto-compact mode: shell width below mobile threshold switches to single-panel mode.
   const shellRef = useRef<HTMLDivElement>(null)
   const shellWidth = useContainerWidth(shellRef)
   const MOBILE_THRESHOLD = 768
   const isAutoCompact = shellWidth > 0 && shellWidth < MOBILE_THRESHOLD
 
-  const effectiveSidebarAndNavigatorHidden = isSidebarAndNavigatorHidden || isAutoCompact
+  const isColumnHidden = isSidebarAndNavigatorHidden || !isSidebarVisible
+  const effectiveColumnHidden = isAutoCompact ? false : isColumnHidden
 
-  // What's New overlay
-  const [showWhatsNew, setShowWhatsNew] = React.useState(false)
-  const [releaseNotesContent, setReleaseNotesContent] = React.useState('')
-  const [hasUnseenReleaseNotes, setHasUnseenReleaseNotes] = React.useState(false)
-
-  // Check for unseen release notes on mount
-  useEffect(() => {
-    window.electronAPI.getLatestReleaseVersion().then((latestVersion) => {
-      if (!latestVersion) return
-      const lastSeen = storage.get(storage.KEYS.whatsNewLastSeenVersion, '')
-      setHasUnseenReleaseNotes(lastSeen !== latestVersion)
-    })
-  }, [])
-
-  const [isResizing, setIsResizing] = React.useState<'sidebar' | 'session-list' | null>(null)
-  const [sidebarHandleY, setSidebarHandleY] = React.useState<number | null>(null)
+  const [isResizing, setIsResizing] = React.useState(false)
   const [sessionListHandleY, setSessionListHandleY] = React.useState<number | null>(null)
-  const resizeHandleRef = React.useRef<HTMLDivElement>(null)
   const sessionListHandleRef = React.useRef<HTMLDivElement>(null)
   const [session, setSession] = useSession()
-  const { resolvedMode, isDark, setMode } = useTheme()
+  const { resolvedMode, setMode } = useTheme()
+  const { isDark } = useTheme()
   const { canGoBack, canGoForward, goBack, goForward, navigateToSource, navigateToSession } = useNavigation()
 
   // Double-Esc interrupt feature: first Esc shows warning, second Esc interrupts
   const { handleEscapePress } = useEscapeInterrupt()
 
   // UNIFIED NAVIGATION STATE - single source of truth from NavigationContext
-  // Derived from focused panel's route — all panels are peers
   const navState = useNavigationState()
 
   const store = useStore()
-  const panelStack = useAtomValue(panelStackAtom)
   const panelCount = useAtomValue(panelCountAtom)
   const focusedSessionId = useAtomValue(focusedSessionIdAtom)
 
@@ -303,7 +179,6 @@ function AppShellContent({
   // If the session is already open in another panel, focus that panel instead.
   const setFocusedPanel = useSetAtom(focusedPanelIdAtom)
   const navigateToSessionInPanel = useCallback((sessionId: string) => {
-    // Check if the session is already open in any panel — focus it instead of navigating
     const stack = store.get(panelStackAtom)
     for (const entry of stack) {
       if (parseSessionIdFromRoute(entry.route) === sessionId) {
@@ -311,237 +186,43 @@ function AppShellContent({
         return
       }
     }
-
-    // Not open in any panel — navigate() updates the focused panel
     navigateToSession(sessionId)
   }, [store, setFocusedPanel, navigateToSession])
 
-  const sessionsContext = React.useMemo(() => {
-    if (isSessionsNavigation(navState)) {
-      return {
-        filter: navState.filter,
-        sessionId: navState.details?.sessionId ?? null,
-      }
-    }
-    return null
-  }, [navState])
+  const showingArchived = isSessionsNavigation(navState) && navState.filter.kind === 'archived'
 
-  const sessionFilter = sessionsContext?.filter ?? null
-
-  // Board view replaces the session-list navigator with the full-width Kanban panel,
-  // so the navigator (and its resize handle) collapse to zero width while it's active.
-  const isBoardView = isSessionsNavigation(navState) && navState.viewMode === 'board'
-
-  // Pages behaves the same way: both the library grid and an open page render
-  // full-width in the content area — there is no pages navigator list.
-  const isPagesView = isPagesNavigation(navState)
-
-  // Derive source filter from navigation state (only when in sources navigator)
-  const sourceFilter: SourceFilter | null = isSourcesNavigation(navState) ? navState.filter ?? null : null
+  // Which body the left column shows. Projects (a project's info page) keep the session list.
+  const navSection: NavSection = isSourcesNavigation(navState)
+    ? 'sources'
+    : isSkillsNavigation(navState)
+      ? 'skills'
+      : isAutomationsNavigation(navState)
+        ? 'automations'
+        : isSettingsNavigation(navState)
+          ? 'settings'
+          : 'sessions'
 
   // Derive automation filter from navigation state (only when in automations navigator)
   const automationFilter: AutomationFilter | null = isAutomationsNavigation(navState) ? navState.filter ?? null : null
 
-  // Per-view filter storage: each session list view (allSessions, flagged, state:X, label:X, view:X)
-  // has its own independent set of status and label filters.
-  // Each filter entry stores a mode ('include' or 'exclude') for tri-state filtering.
-  type FilterEntry = Record<string, FilterMode> // id → mode
-  type ViewFiltersMap = Record<string, { statuses: FilterEntry, labels: FilterEntry, projects?: FilterEntry, groupingMode?: ChatGroupingMode }>
-
-  // Compute a stable key for the current chat filter view
-  const sessionFilterKey = useMemo(() => {
-    if (!sessionFilter) return null
-    switch (sessionFilter.kind) {
-      case 'allSessions': return 'allSessions'
-      case 'flagged': return 'flagged'
-      case 'archived': return 'archived'
-      case 'state': return `state:${sessionFilter.stateId}`
-      case 'label': return `label:${sessionFilter.labelId}`
-      case 'view': return `view:${sessionFilter.viewId}`
-      default: return 'allSessions'
-    }
-  }, [sessionFilter])
-
-  const [viewFiltersMap, setViewFiltersMap] = React.useState<ViewFiltersMap>(() => {
-    const saved = storage.get<ViewFiltersMap>(storage.KEYS.viewFilters, {})
-    // Backward compat: migrate old format (arrays) into new format (Record<string, FilterMode>)
-    if (saved.allSessions && Array.isArray((saved.allSessions as any).statuses)) {
-      // Old format: { statuses: string[], labels: string[] } → new: { statuses: Record, labels: Record }
-      for (const key of Object.keys(saved)) {
-        const entry = saved[key] as any
-        if (Array.isArray(entry.statuses)) {
-          const newStatuses: FilterEntry = {}
-          for (const id of entry.statuses) newStatuses[id] = 'include'
-          const newLabels: FilterEntry = {}
-          for (const id of entry.labels) newLabels[id] = 'include'
-          saved[key] = { statuses: newStatuses, labels: newLabels }
-        }
-      }
-    }
-    // Also migrate legacy global filters if no allSessions entry exists
-    if (!saved.allSessions) {
-      const oldStatuses = storage.get<SessionStatusId[]>(storage.KEYS.listFilter, [])
-      const oldLabels = storage.get<string[]>(storage.KEYS.labelFilter, [])
-      if (oldStatuses.length > 0 || oldLabels.length > 0) {
-        const statuses: FilterEntry = {}
-        for (const id of oldStatuses) statuses[id] = 'include'
-        const labels: FilterEntry = {}
-        for (const id of oldLabels) labels[id] = 'include'
-        saved.allSessions = { statuses, labels }
-      }
-    }
-    return saved
-  })
-
-  // Derive current view's status filter as a Map<SessionStatusId, FilterMode>
-  const listFilter = useMemo(() => {
-    if (!sessionFilterKey) return new Map<SessionStatusId, FilterMode>()
-    const entry = viewFiltersMap[sessionFilterKey]?.statuses ?? {}
-    return new Map<SessionStatusId, FilterMode>(Object.entries(entry) as [SessionStatusId, FilterMode][])
-  }, [viewFiltersMap, sessionFilterKey])
-
-  // Derive current view's label filter as a Map<string, FilterMode>
-  const labelFilter = useMemo(() => {
-    if (!sessionFilterKey) return new Map<string, FilterMode>()
-    const entry = viewFiltersMap[sessionFilterKey]?.labels ?? {}
-    return new Map<string, FilterMode>(Object.entries(entry) as [string, FilterMode][])
-  }, [viewFiltersMap, sessionFilterKey])
-
-  // Derive current view's project filter as a Map<projectId, FilterMode>
-  const projectFilter = useMemo(() => {
-    if (!sessionFilterKey) return new Map<string, FilterMode>()
-    const entry = viewFiltersMap[sessionFilterKey]?.projects ?? {}
-    return new Map<string, FilterMode>(Object.entries(entry) as [string, FilterMode][])
-  }, [viewFiltersMap, sessionFilterKey])
-
-  // Setter for status filter — updates only the current view's entry in the map
-  const setListFilter = useCallback((updater: Map<SessionStatusId, FilterMode> | ((prev: Map<SessionStatusId, FilterMode>) => Map<SessionStatusId, FilterMode>)) => {
-    setViewFiltersMap(prev => {
-      if (!sessionFilterKey) return prev
-      const current = new Map<SessionStatusId, FilterMode>(Object.entries(prev[sessionFilterKey]?.statuses ?? {}) as [SessionStatusId, FilterMode][])
-      const next = typeof updater === 'function' ? updater(current) : updater
-      const existing = prev[sessionFilterKey]
-      return {
-        ...prev,
-        [sessionFilterKey]: {
-          statuses: Object.fromEntries(next),
-          labels: existing?.labels ?? {},
-          projects: existing?.projects ?? {},
-          groupingMode: existing?.groupingMode,
-        }
-      }
-    })
-  }, [sessionFilterKey])
-
-  // Setter for label filter — updates only the current view's entry in the map
-  const setLabelFilter = useCallback((updater: Map<string, FilterMode> | ((prev: Map<string, FilterMode>) => Map<string, FilterMode>)) => {
-    setViewFiltersMap(prev => {
-      if (!sessionFilterKey) return prev
-      const current = new Map<string, FilterMode>(Object.entries(prev[sessionFilterKey]?.labels ?? {}) as [string, FilterMode][])
-      const next = typeof updater === 'function' ? updater(current) : updater
-      const existing = prev[sessionFilterKey]
-      return {
-        ...prev,
-        [sessionFilterKey]: {
-          statuses: existing?.statuses ?? {},
-          labels: Object.fromEntries(next),
-          projects: existing?.projects ?? {},
-          groupingMode: existing?.groupingMode,
-        }
-      }
-    })
-  }, [sessionFilterKey])
-
-  // Setter for project filter — updates only the current view's entry in the map
-  const setProjectFilter = useCallback((updater: Map<string, FilterMode> | ((prev: Map<string, FilterMode>) => Map<string, FilterMode>)) => {
-    setViewFiltersMap(prev => {
-      if (!sessionFilterKey) return prev
-      const current = new Map<string, FilterMode>(Object.entries(prev[sessionFilterKey]?.projects ?? {}) as [string, FilterMode][])
-      const next = typeof updater === 'function' ? updater(current) : updater
-      const existing = prev[sessionFilterKey]
-      return {
-        ...prev,
-        [sessionFilterKey]: {
-          statuses: existing?.statuses ?? {},
-          labels: existing?.labels ?? {},
-          projects: Object.fromEntries(next),
-          groupingMode: existing?.groupingMode,
-        }
-      }
-    })
-  }, [sessionFilterKey])
-
-  // Jump to All Sessions filtered by a single project. Used by the Projects list
-  // context menu — sets the allSessions view's project filter (preserving its
-  // other filters), then navigates.
-  const handleJumpToProjectSessions = useCallback((projectId: string) => {
-    setViewFiltersMap(prev => {
-      const existing = prev['allSessions']
-      return {
-        ...prev,
-        allSessions: {
-          statuses: existing?.statuses ?? {},
-          labels: existing?.labels ?? {},
-          projects: { [projectId]: 'include' },
-          groupingMode: existing?.groupingMode,
-        }
-      }
-    })
-    navigate(routes.view.allSessions())
-  }, [])
-
-  // Jump to All Sessions scoped to a task: replace the allSessions view's label filter
-  // (and project filter, when the task is bound to one) with the task's scope, then open
-  // the session. These are the SAME user-clearable filters the list-header chips edit —
-  // clearing them afterwards works exactly like any hand-set filter. Mirrors
-  // handleJumpToProjectSessions; used by kanban tile/subtask clicks and post-create.
-  const handleJumpToTaskSessions = useCallback(
-    (sessionId: string, scope: { labelId: string; projectId?: string }) => {
-      setViewFiltersMap(prev => {
-        const existing = prev['allSessions']
-        return {
-          ...prev,
-          allSessions: {
-            statuses: existing?.statuses ?? {},
-            labels: { [scope.labelId]: 'include' },
-            projects: scope.projectId ? { [scope.projectId]: 'include' } : {},
-            groupingMode: existing?.groupingMode,
-          }
-        }
-      })
-      navigate(routes.view.allSessions(sessionId))
-    },
-    []
+  // Project / status grouping of the session column (persisted per workspace)
+  const [grouping, setGrouping] = React.useState<SessionGrouping>(() =>
+    storage.get<SessionGrouping>(storage.KEYS.sessionGrouping, 'project', activeWorkspaceId ?? undefined)
   )
+  const handleGroupingChange = useCallback((value: SessionGrouping) => {
+    setGrouping(value)
+    if (activeWorkspaceId) storage.set(storage.KEYS.sessionGrouping, value, activeWorkspaceId)
+  }, [activeWorkspaceId])
 
   // Search state for session list
   const [searchActive, setSearchActive] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-
-  // Grouping mode for chat list: per-view (stored in viewFiltersMap), forced to 'date' for state sub-views
-  const isStateSubView = sessionFilter?.kind === 'state'
-
-  const chatGroupingMode: ChatGroupingMode = isStateSubView
-    ? 'date'
-    : (viewFiltersMap[sessionFilterKey ?? '']?.groupingMode ?? 'date')
-
-  const setChatGroupingMode = useCallback((mode: ChatGroupingMode) => {
-    setViewFiltersMap(prev => {
-      if (!sessionFilterKey) return prev
-      const existing = prev[sessionFilterKey] ?? { statuses: {}, labels: {} }
-      return {
-        ...prev,
-        [sessionFilterKey]: { ...existing, groupingMode: mode }
-      }
-    })
-  }, [sessionFilterKey])
 
   // Ref for ChatDisplay navigation (exposed via forwardRef)
   const chatDisplayRef = React.useRef<ChatDisplayHandle>(null)
   // Track match count and index from ChatDisplay (for SessionList navigation UI)
   const [chatMatchInfo, setChatMatchInfo] = React.useState<{ sessionId: string | null; count: number; index: number; isHighlighting?: boolean }>({ sessionId: null, count: 0, index: 0 })
 
-  // Callback for immediate match info updates from ChatDisplay
   // Memo guard prevents render feedback loops from identical updates
   const handleChatMatchInfoChange = React.useCallback((info: { sessionId: string | null; count: number; index: number; isHighlighting: boolean }) => {
     setChatMatchInfo(prev => {
@@ -559,15 +240,8 @@ function AppShellContent({
     }
   }, [searchActive, searchQuery])
 
-  // Reset search only when navigator or filter changes (not when selecting sessions)
-  const navFilterKey = React.useMemo(() => {
-    if (isSessionsNavigation(navState)) {
-      const filter = navState.filter
-      return `chats:${filter.kind}:${filter.kind === 'state' ? filter.stateId : ''}`
-    }
-    return navState.navigator
-  }, [navState])
-
+  // Reset search when the column switches body or between active/archived (not when selecting sessions)
+  const navFilterKey = isSessionsNavigation(navState) ? `sessions:${navState.filter.kind}` : navState.navigator
   React.useEffect(() => {
     setSearchActive(false)
     setSearchQuery('')
@@ -576,30 +250,6 @@ function AppShellContent({
   // Cmd+F to activate search
   useAction('app.search', () => setSearchActive(true))
 
-  // Unified sidebar keyboard navigation state
-  // Load expanded folders from localStorage (default: all collapsed)
-  const [expandedFolders, setExpandedFolders] = React.useState<Set<string>>(() => {
-    const saved = storage.get<string[]>(storage.KEYS.expandedFolders, [])
-    return new Set(saved)
-  })
-  const [focusedSidebarItemId, setFocusedSidebarItemId] = React.useState<string | null>(null)
-  const sidebarItemRefs = React.useRef<Map<string, HTMLElement>>(new Map())
-  // Track which expandable sidebar items are collapsed
-  // Labels are collapsed by default; user preference is persisted once toggled
-  const [collapsedItems, setCollapsedItems] = React.useState<Set<string>>(() => {
-    const saved = storage.get<string[] | null>(storage.KEYS.collapsedSidebarItems, null)
-    if (saved !== null) return new Set(saved)
-    return new Set(['nav:labels'])
-  })
-  const isExpanded = React.useCallback((id: string) => !collapsedItems.has(id), [collapsedItems])
-  const toggleExpanded = React.useCallback((id: string) => {
-    setCollapsedItems(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
   // Sources state (workspace-scoped)
   const [sources, setSources] = React.useState<LoadedSource[]>([])
   const [chatStarters, setChatStarters] = React.useState<Array<{ label: string; prompt: string }> | undefined>(undefined)
@@ -611,12 +261,11 @@ function AppShellContent({
 
   // Skills state (workspace-scoped)
   const [skills, setSkills] = React.useState<LoadedSkill[]>([])
-  // Sync skills to atom for NavigationContext auto-selection
   const setSkillsAtom = useSetAtom(skillsAtom)
   React.useEffect(() => {
     setSkillsAtom(skills)
   }, [skills, setSkillsAtom])
-  // Automations — state, handlers, loading, subscriptions
+
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId)
 
   // Send to Workspace dialog state (driven by sendToWorkspaceAtom set from SessionMenu/BatchSessionMenu)
@@ -633,7 +282,6 @@ function AppShellContent({
   } = useAutomations(activeWorkspaceId)
 
   const { projects } = useProjects(activeWorkspaceId)
-  const { pages } = usePages(activeWorkspaceId)
   const projectMenuOptions = useMemo(
     () => projects.map(p => ({ id: p.config.id, slug: p.config.slug, name: p.config.name, color: p.config.color })),
     [projects],
@@ -660,7 +308,6 @@ function AppShellContent({
     window.electronAPI.getWorkspaceSettings(activeWorkspaceId).then((settings) => {
       if (settings) {
         setLocalMcpEnabled(settings.localMcpEnabled ?? true)
-        // Load cyclablePermissionModes from workspace settings
         if (settings.cyclablePermissionModes && settings.cyclablePermissionModes.length >= 2) {
           setEnabledModes(settings.cyclablePermissionModes)
         }
@@ -712,39 +359,18 @@ function AppShellContent({
     }
   }, [activeWorkspaceId, setGuardedModeAvailable])
 
-  // Reset UI state when workspace changes
-  // This prevents stale search queries, focused items, and filter state from persisting
+  // Reset transient UI state on workspace SWITCH (not initial mount) and load the workspace's grouping
   const previousWorkspaceRef = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (!activeWorkspaceId) return
-
     const previousWorkspaceId = previousWorkspaceRef.current
-
-    // Clear transient UI state only on workspace SWITCH (not initial mount)
     if (previousWorkspaceId !== null && previousWorkspaceId !== activeWorkspaceId) {
-      // Clear search state
       setSearchActive(false)
       setSearchQuery('')
-
-      // (The filter dropdown's own query state resets by remounting per workspace — see SessionFilterMenu key.)
-
-      // Clear focused sidebar item
-      setFocusedSidebarItemId(null)
     }
-
-    // Load workspace-scoped state on BOTH initial mount AND workspace switch
-    // This fixes CMD+R losing filters - previously only ran on workspace switch
     if (previousWorkspaceId !== activeWorkspaceId) {
-      const newViewFilters = storage.get<ViewFiltersMap>(storage.KEYS.viewFilters, {}, activeWorkspaceId)
-      setViewFiltersMap(newViewFilters)
-
-      const newExpandedFolders = storage.get<string[]>(storage.KEYS.expandedFolders, [], activeWorkspaceId)
-      setExpandedFolders(new Set(newExpandedFolders))
-
-      const newCollapsedItems = storage.get<string[] | null>(storage.KEYS.collapsedSidebarItems, null, activeWorkspaceId)
-      setCollapsedItems(newCollapsedItems !== null ? new Set(newCollapsedItems) : new Set(['nav:labels']))
+      setGrouping(storage.get<SessionGrouping>(storage.KEYS.sessionGrouping, 'project', activeWorkspaceId))
     }
-
     previousWorkspaceRef.current = activeWorkspaceId
   }, [activeWorkspaceId])
 
@@ -782,7 +408,6 @@ function AppShellContent({
   const handleSessionSourcesChange = React.useCallback(async (sessionId: string, sourceSlugs: string[]) => {
     try {
       await window.electronAPI.sessionCommand(sessionId, { type: 'setSources', sourceSlugs })
-      // Session will emit a 'sources_changed' event that updates the session state
     } catch (err) {
       console.error('[Chat] Failed to set session sources:', err)
     }
@@ -792,15 +417,13 @@ function AppShellContent({
   const handleSessionLabelsChange = React.useCallback(async (sessionId: string, labels: string[]) => {
     try {
       await window.electronAPI.sessionCommand(sessionId, { type: 'setLabels', labels })
-      // Session will emit a 'labels_changed' event that updates the session state
     } catch (err) {
       console.error('[Chat] Failed to set session labels:', err)
     }
   }, [])
 
-
   // Load dynamic statuses from workspace config
-  const { statuses: statusConfigs, isLoading: isLoadingStatuses } = useStatuses(activeWorkspace?.id || null)
+  const { statuses: statusConfigs } = useStatuses(activeWorkspace?.id || null)
   const [sessionStatuses, setSessionStatuses] = React.useState<SessionStatus[]>([])
 
   // Convert StatusConfig to SessionStatus with resolved icons
@@ -809,51 +432,17 @@ function AppShellContent({
       setSessionStatuses([])
       return
     }
-
     setSessionStatuses(statusConfigsToSessionStatuses(statusConfigs, activeWorkspace.id, isDark))
   }, [statusConfigs, activeWorkspace?.id, isDark])
 
-  // Optimistic status order: immediately reflects drag-drop order while IPC propagates.
-  // Cleared when statusConfigs changes (config watcher is source of truth).
-  const [optimisticStatusOrder, setOptimisticStatusOrder] = React.useState<string[] | null>(null)
-
-  // Clear optimistic state when the config watcher fires (statusConfigs changes)
-  React.useEffect(() => {
-    setOptimisticStatusOrder(null)
-  }, [statusConfigs])
-
-  // Derive effective todo states: apply optimistic reorder if active, otherwise use canonical order
-  const effectiveSessionStatuses = React.useMemo(() => {
-    if (!optimisticStatusOrder) return sessionStatuses
-    // Reorder sessionStatuses array to match optimistic order
-    const stateMap = new Map(sessionStatuses.map(s => [s.id, s]))
-    const reordered: SessionStatus[] = []
-    for (const id of optimisticStatusOrder) {
-      const state = stateMap.get(id)
-      if (state) reordered.push(state)
-    }
-    // Append any states not in the optimistic order (shouldn't happen, but defensive)
-    for (const state of sessionStatuses) {
-      if (!optimisticStatusOrder.includes(state.id)) reordered.push(state)
-    }
-    return reordered
-  }, [sessionStatuses, optimisticStatusOrder])
-
-  // Load labels from workspace config
+  // Load labels from workspace config (assigned from the session menu, shown as row badges)
   const { labels: labelConfigs } = useLabels(activeWorkspace?.id || null)
   const displayLabelConfigs = useMemo(() => sortLabelsForDisplay(labelConfigs), [labelConfigs])
-
-  // Views: compiled once on config load, evaluated per session in list/chat
-  const { evaluateSession: evaluateViews, viewConfigs } = useViews(activeWorkspace?.id || null)
-
-  // Build hierarchical label tree from the display-sorted label config structure
-  const labelTree = useMemo(() => buildLabelTree(displayLabelConfigs), [displayLabelConfigs])
-
 
   // Ensure session messages are loaded when selected
   const ensureMessagesLoaded = useSetAtom(ensureSessionMessagesLoadedAtom)
 
-  // Handle selecting a source from the list (preserves current filter type)
+  // Handle selecting a source from the list
   const handleSourceSelect = React.useCallback((source: LoadedSource) => {
     if (!activeWorkspaceId) return
     navigateToSource(source.config.slug)
@@ -863,26 +452,18 @@ function AppShellContent({
   const handleSkillSelect = React.useCallback((skill: LoadedSkill) => {
     if (!activeWorkspaceId) return
     navigate(routes.view.skills(skill.slug))
-  }, [activeWorkspaceId, navigate])
+  }, [activeWorkspaceId])
 
-  // Handle selecting an automation from the list
+  // Handle selecting an automation from the list (keeps the current type filter)
   const handleAutomationSelect = React.useCallback((automationId: string) => {
-    // Preserve current automation filter when selecting an automation
-    const type = isAutomationsNavigation(navState) ? navState.filter?.automationType : undefined
-    navigate(routes.view.automations({ automationId, type }))
-  }, [navState, navigate])
+    navigate(routes.view.automations({ automationId, type: automationFilter?.automationType }))
+  }, [automationFilter?.automationType])
 
   // Focus zone management
-  const { focusZone, focusNextZone, focusPreviousZone } = useFocusContext()
-
-  // Register focus zones
-  const { zoneRef: sidebarRef, isFocused: sidebarFocused } = useFocusZone({ zoneId: 'sidebar' })
-
-  // Global keyboard shortcuts using centralized action registry
-  // Actions are defined in @/actions/definitions.ts
+  const { focusZone, focusNextZone } = useFocusContext()
 
   // Zone navigation - explicit keyboard intent, always move DOM focus
-  useAction('nav.focusSidebar', () => focusZone('sidebar', { intent: 'keyboard' }))
+  useAction('nav.focusSidebar', () => focusZone('navigator', { intent: 'keyboard' }))
   useAction('nav.focusNavigator', () => focusZone('navigator', { intent: 'keyboard' }))
   useAction('nav.focusChat', () => focusZone('chat', { intent: 'keyboard' }))
 
@@ -891,8 +472,7 @@ function AppShellContent({
     focusNextZone()
   }, { enabled: () => !document.querySelector('[role="dialog"]') })
 
-  // Shift+Tab cycles permission mode through enabled modes (textarea handles its own, this handles when focus is elsewhere)
-  // In multi-panel, targets the focused panel's session
+  // In multi-panel, actions target the focused panel's session
   const effectiveSessionId = focusedSessionId ?? session.selected
 
   // Focus chat input for the target session only (multi-panel safe).
@@ -901,32 +481,32 @@ function AppShellContent({
     dispatchFocusInputEvent({ sessionId: targetSessionId })
   }, [])
 
+  // Shift+Tab cycles permission mode through enabled modes (textarea handles its own, this handles when focus is elsewhere)
   useAction('chat.cyclePermissionMode', () => {
     if (effectiveSessionId) {
       const currentOptions = contextValue.sessionOptions.get(effectiveSessionId)
       const currentMode = currentOptions?.permissionMode ?? 'ask'
-      // Cycle through enabled permission modes. An unavailable Guarded behaves as Ask, so it
-      // stands in as Ask (never re-adding Execute the user left out of the cycle).
+      // An unavailable Guarded behaves as Ask, so it stands in as Ask (never re-adding Execute
+      // the user left out of the cycle).
       const base = enabledModes.length >= 2 ? enabledModes : DEFAULT_PERMISSION_MODES
       const listed = base
         .map(mode => (mode === 'guarded' && !guardedModeAvailable ? 'ask' : mode))
         .filter((mode, index, all) => all.indexOf(mode) === index)
       const modes = listed.length >= 2 ? listed : (['safe', 'ask'] as PermissionMode[])
       const currentIndex = modes.indexOf(currentMode)
-      // If current mode not in enabled list, jump to first enabled mode
       const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % modes.length
-      const nextMode = modes[nextIndex]
-      contextValue.onSessionOptionsChange(effectiveSessionId, { permissionMode: nextMode })
+      contextValue.onSessionOptionsChange(effectiveSessionId, { permissionMode: modes[nextIndex] })
     }
   })
 
-  // Whether the next sidebar/list show-hide animates: pointer toggles glide (FLIP), keyboard toggles
+  // Whether the next column show-hide animates: pointer toggles glide (FLIP), keyboard toggles
   // (⌘B, ⌘., menu accelerators) are instant — spec §6.1. Set in the same batch as the toggle.
   const [animateShellLayout, setAnimateShellLayout] = React.useState(true)
 
   const handleToggleSidebar = useCallback(() => {
     if (isSidebarAndNavigatorHidden) {
       setIsSidebarAndNavigatorHidden(false)
+      setIsSidebarVisible(true)
       return
     }
     setIsSidebarVisible(v => !v)
@@ -948,7 +528,7 @@ function AppShellContent({
     handleToggleSidebar()
   })
 
-  // Focus mode toggle (CMD+.) - hides both sidebars
+  // Focus mode toggle (CMD+.)
   useAction('view.toggleFocusMode', () => {
     setAnimateShellLayout(false)
     setIsSidebarAndNavigatorHidden(v => !v)
@@ -976,11 +556,9 @@ function AppShellContent({
   // Quit (note: also handled by native menu on macOS)
   useAction('app.quit', () => window.electronAPI.menuQuit())
 
-  // History navigation
+  // History navigation (and arrow key alternatives)
   useAction('nav.goBack', goBack)
   useAction('nav.goForward', goForward)
-
-  // History navigation (arrow key alternatives)
   useAction('nav.goBackAlt', goBack)
   useAction('nav.goForwardAlt', goForward)
 
@@ -992,14 +570,15 @@ function AppShellContent({
     enabled: () => searchActive && (chatMatchInfo.count ?? 0) > 0
   })
 
+  // Use session metadata from Jotai atom (lightweight, no messages)
+  const sessionMetaMap = useAtomValue(sessionMetaMapAtom)
+
   // ESC to stop processing - requires double-press within 1 second
   // First press shows warning overlay, second press interrupts
-  // In multi-panel, targets the focused panel's session
   useAction('chat.stopProcessing', () => {
     if (effectiveSessionId) {
       const meta = sessionMetaMap.get(effectiveSessionId)
       if (meta?.isProcessing) {
-        // handleEscapePress returns true on second press (within timeout)
         const shouldInterrupt = handleEscapePress()
         if (shouldInterrupt) {
           window.electronAPI.cancelProcessing(effectiveSessionId, false).catch(err => {
@@ -1009,8 +588,7 @@ function AppShellContent({
       }
     }
   }, {
-    // Only active when no overlay is open and session is processing
-    // Overlays (dialogs, menus, popovers, etc.) should handle their own Escape
+    // Overlays (dialogs, menus, popovers, etc.) handle their own Escape
     enabled: () => {
       if (hasOpenOverlay()) return false
       if (!effectiveSessionId) return false
@@ -1026,16 +604,10 @@ function AppShellContent({
   // Fires when Cmd+V is pressed anywhere in the app (not just textarea)
   React.useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
-      // Skip if a dialog or menu is open
-      if (document.querySelector('[role="dialog"], [role="menu"]')) {
-        return
-      }
-
-      // Skip if there are no files in the clipboard
+      if (document.querySelector('[role="dialog"], [role="menu"]')) return
       const files = e.clipboardData?.files
       if (!files || files.length === 0) return
-
-      // Skip if the active element is an input/textarea/contenteditable (let it handle paste directly)
+      // Let inputs/textareas/contenteditables handle their own paste
       const activeElement = document.activeElement as HTMLElement | null
       if (
         activeElement?.tagName === 'TEXTAREA' ||
@@ -1044,16 +616,12 @@ function AppShellContent({
       ) {
         return
       }
-
-      // Prevent default paste behavior
       e.preventDefault()
-
       // Dispatch custom event for FreeFormInput to handle (target focused session only)
-      const filesArray = Array.from(files)
       const targetSessionId = focusedSessionId ?? session.selected
       if (!targetSessionId) return
       window.dispatchEvent(new CustomEvent('craft:paste-files', {
-        detail: { files: filesArray, sessionId: targetSessionId }
+        detail: { files: Array.from(files), sessionId: targetSessionId }
       }))
     }
 
@@ -1061,38 +629,23 @@ function AppShellContent({
     return () => document.removeEventListener('paste', handleGlobalPaste)
   }, [focusedSessionId, session.selected])
 
-  // Resize effect for sidebar, session list, browser host lane, and metadata right sidebar.
+  // Resize the session column
   React.useEffect(() => {
     if (!isResizing) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (isResizing === 'sidebar') {
-        const newWidth = Math.min(Math.max(e.clientX, 180), 320)
-        setSidebarWidth(newWidth)
-        if (resizeHandleRef.current) {
-          const rect = resizeHandleRef.current.getBoundingClientRect()
-          setSidebarHandleY(e.clientY - rect.top)
-        }
-      } else if (isResizing === 'session-list') {
-        const offset = isSidebarVisible ? sidebarWidth : 0
-        const newWidth = Math.min(Math.max(e.clientX - offset, 240), 480)
-        setSessionListWidth(newWidth)
-        if (sessionListHandleRef.current) {
-          const rect = sessionListHandleRef.current.getBoundingClientRect()
-          setSessionListHandleY(e.clientY - rect.top)
-        }
+      const newWidth = Math.min(Math.max(e.clientX - PANEL_EDGE_INSET, SESSION_COLUMN_MIN_WIDTH), SESSION_COLUMN_MAX_WIDTH)
+      setSessionListWidth(newWidth)
+      if (sessionListHandleRef.current) {
+        const rect = sessionListHandleRef.current.getBoundingClientRect()
+        setSessionListHandleY(e.clientY - rect.top)
       }
     }
 
     const handleMouseUp = () => {
-      if (isResizing === 'sidebar') {
-        storage.set(storage.KEYS.sidebarWidth, sidebarWidth)
-        setSidebarHandleY(null)
-      } else if (isResizing === 'session-list') {
-        storage.set(storage.KEYS.sessionListWidth, sessionListWidth)
-        setSessionListHandleY(null)
-      }
-      setIsResizing(null)
+      storage.set(storage.KEYS.sessionListWidth, sessionListWidth)
+      setSessionListHandleY(null)
+      setIsResizing(false)
     }
 
     document.addEventListener('mousemove', handleMouseMove)
@@ -1102,25 +655,7 @@ function AppShellContent({
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [
-    isResizing,
-    sidebarWidth,
-    sessionListWidth,
-    isSidebarVisible,
-  ])
-
-  // Spring transition config - shared between sidebar and header
-  // Critical damping (no bounce): damping = 2 * sqrt(stiffness * mass)
-  const springTransition = {
-    type: "spring" as const,
-    stiffness: 600,
-    damping: 49,
-  }
-
-  // Use session metadata from Jotai atom (lightweight, no messages)
-  // This prevents closures from retaining full message arrays
-  const sessionMetaMap = useAtomValue(sessionMetaMapAtom)
-  const setSessionMetaMap = useSetAtom(sessionMetaMapAtom)
+  }, [isResizing, sessionListWidth])
 
   const hasPendingPrompt = React.useCallback((sessionId: string) => {
     return (pendingPermissions.get(sessionId)?.length ?? 0) > 0
@@ -1143,8 +678,7 @@ function AppShellContent({
     })
   }, [activeWorkspaceId, activeSessionWorkingDirectory])
 
-  // Filter session metadata by active workspace
-  // Also exclude hidden sessions (mini-agent sessions) from all counts and lists
+  // Filter session metadata by active workspace, excluding hidden (mini-agent) sessions.
   // For remote workspaces, sessions have the remote workspace ID (not the local one),
   // so we match against both the local and remote workspace IDs.
   const remoteWorkspaceId = activeWorkspace?.remoteServer?.remoteWorkspaceId
@@ -1156,20 +690,17 @@ function AppShellContent({
     )
   }, [sessionMetaMap, activeWorkspaceId, remoteWorkspaceId])
 
-  // Active sessions exclude archived - use this for all counts and filters except archived view
-  const activeSessionMetas = useMemo(() => {
-    return workspaceSessionMetas.filter(s => !s.isArchived)
-  }, [workspaceSessionMetas])
+  // Active sessions exclude archived
+  const activeSessionMetas = useMemo(() => workspaceSessionMetas.filter(s => !s.isArchived), [workspaceSessionMetas])
+  const archivedCount = workspaceSessionMetas.length - activeSessionMetas.length
 
   const refreshWorkspaceUnreadMap = useCallback(async () => {
     try {
       const summary = await window.electronAPI.getUnreadSummary()
       const next: Record<string, boolean> = {}
-
       for (const workspace of workspaces) {
         next[workspace.id] = !!summary.hasUnreadByWorkspace[workspace.id]
       }
-
       setWorkspaceUnreadMap(next)
     } catch (error) {
       console.error('[AppShell] Failed to refresh workspace unread indicators:', error)
@@ -1184,7 +715,7 @@ function AppShellContent({
   // Keep active workspace unread indicator in sync with live metadata updates
   useEffect(() => {
     if (!activeWorkspaceId) return
-    const activeHasUnread = activeSessionMetas.some((session) => !!session.hasUnread)
+    const activeHasUnread = activeSessionMetas.some((s) => !!s.hasUnread)
     setWorkspaceUnreadMap((prev) => ({ ...prev, [activeWorkspaceId]: activeHasUnread }))
   }, [activeWorkspaceId, activeSessionMetas])
 
@@ -1197,213 +728,8 @@ function AppShellContent({
       }
       setWorkspaceUnreadMap(next)
     })
-
     return cleanup
   }, [workspaces])
-
-  // Count sessions by todo state (scoped to workspace)
-  const isMetaDone = (s: SessionMeta) => s.sessionStatus === 'done' || s.sessionStatus === 'cancelled'
-  const flaggedCount = activeSessionMetas.filter(s => s.isFlagged).length
-  const archivedCount = workspaceSessionMetas.filter(s => s.isArchived).length
-
-  // Compute session counts per label (cumulative: parent includes descendants).
-  // Flatten the tree for iteration, use the tree for descendant lookups.
-  // Uses activeSessionMetas to exclude archived sessions from counts.
-  const labelCounts = useMemo(() => {
-    const allLabels = flattenLabels(labelConfigs)
-    const counts: Record<string, number> = {}
-    for (const label of allLabels) {
-      // Direct count: sessions explicitly tagged with this label (handles valued entries like "priority::3")
-      const directCount = activeSessionMetas.filter(
-        s => s.labels?.some(l => extractLabelId(l) === label.id)
-      ).length
-      counts[label.id] = directCount
-    }
-    // Add descendant counts to parents (cumulative)
-    for (const label of allLabels) {
-      const descendants = getDescendantIds(labelConfigs, label.id)
-      if (descendants.length > 0) {
-        const descendantCount = activeSessionMetas.filter(
-          s => s.labels?.some(l => descendants.includes(extractLabelId(l)))
-        ).length
-        counts[label.id] = (counts[label.id] || 0) + descendantCount
-      }
-    }
-    return counts
-  }, [activeSessionMetas, labelConfigs])
-
-  // Count sessions by individual todo state (dynamic based on effectiveSessionStatuses)
-  // Uses activeSessionMetas to exclude archived sessions from counts.
-  const sessionStatusCounts = useMemo(() => {
-    const counts: Record<SessionStatusId, number> = {}
-    // Initialize counts for all dynamic statuses
-    for (const state of effectiveSessionStatuses) {
-      counts[state.id] = 0
-    }
-    // Count sessions
-    for (const s of activeSessionMetas) {
-      const state = (s.sessionStatus || 'todo') as SessionStatusId
-      // Increment count (initialize to 0 if status not in effectiveSessionStatuses yet)
-      counts[state] = (counts[state] || 0) + 1
-    }
-    return counts
-  }, [activeSessionMetas, effectiveSessionStatuses])
-
-  // Count sources by type for the Sources dropdown subcategories
-  const sourceTypeCounts = useMemo(() => {
-    const counts = { api: 0, mcp: 0, local: 0 }
-    for (const source of sources) {
-      const t = source.config.type
-      if (t === 'api' || t === 'mcp' || t === 'local') {
-        counts[t]++
-      }
-    }
-    return counts
-  }, [sources])
-
-  // Count automations by type for the Automations dropdown subcategories
-  const automationTypeCounts = useMemo(() => {
-    const counts = { scheduled: 0, event: 0, agentic: 0 }
-    for (const automation of automations) {
-      if (automation.event === 'SchedulerTick') counts.scheduled++
-      else if ((APP_EVENTS as string[]).includes(automation.event)) counts.event++
-      else if ((AGENT_EVENTS as string[]).includes(automation.event)) counts.agentic++
-    }
-    return counts
-  }, [automations])
-
-  // Filter session metadata based on sidebar mode and chat filter
-  const filteredSessionMetas = useMemo(() => {
-    // When in sources mode, return empty (no sessions to show)
-    if (!sessionFilter) {
-      return []
-    }
-
-    let result: SessionMeta[]
-
-    switch (sessionFilter.kind) {
-      case 'allSessions':
-        // "All Sessions" - shows active (non-archived) sessions
-        result = activeSessionMetas
-        break
-      case 'flagged':
-        result = activeSessionMetas.filter(s => s.isFlagged)
-        break
-      case 'archived':
-        // Archived view shows only archived sessions
-        result = workspaceSessionMetas.filter(s => s.isArchived)
-        break
-      case 'state':
-        // Filter by specific todo state (excludes archived)
-        result = activeSessionMetas.filter(s => (s.sessionStatus || 'todo') === sessionFilter.stateId)
-        break
-      case 'label': {
-        // Shared predicate (handles '__all__', descendant labels, and the optional
-        // project scope) — the same implementation the session list filters with,
-        // so the two stay aligned by construction.
-        result = activeSessionMetas.filter(s => matchesLabelFilter(s, sessionFilter, labelConfigs))
-        break
-      }
-      case 'view': {
-        // Filter by view: __all__ shows any session matched by any view,
-        // otherwise filter to the specific view (excludes archived)
-        result = activeSessionMetas.filter(s => {
-          const matched = evaluateViews(s)
-          if (sessionFilter.viewId === '__all__') {
-            return matched.length > 0
-          }
-          return matched.some(v => v.id === sessionFilter.viewId)
-        })
-        break
-      }
-      default:
-        result = activeSessionMetas
-    }
-
-    // Apply secondary filters (status + labels, AND-ed together) in ALL views.
-    // These layer on top of the primary sessionFilter to allow further narrowing.
-    // Each filter supports include/exclude modes:
-    //   - Includes: if any exist, only matching items pass
-    //   - Excludes: matching items are removed (applied after includes)
-    if (listFilter.size > 0) {
-      const statusIncludes = new Set<SessionStatusId>()
-      const statusExcludes = new Set<SessionStatusId>()
-      for (const [id, mode] of listFilter) {
-        if (mode === 'include') statusIncludes.add(id)
-        else statusExcludes.add(id)
-      }
-      if (statusIncludes.size > 0) {
-        result = result.filter(s => statusIncludes.has((s.sessionStatus || 'todo') as SessionStatusId))
-      }
-      if (statusExcludes.size > 0) {
-        result = result.filter(s => !statusExcludes.has((s.sessionStatus || 'todo') as SessionStatusId))
-      }
-    }
-    // Filter by labels — supports include/exclude with descendant expansion
-    if (labelFilter.size > 0) {
-      const labelIncludes = new Set<string>()
-      const labelExcludes = new Set<string>()
-      for (const [id, mode] of labelFilter) {
-        // Expand to include descendant label IDs
-        const ids = [id, ...getDescendantIds(labelConfigs, id)]
-        for (const expandedId of ids) {
-          if (mode === 'include') labelIncludes.add(expandedId)
-          else labelExcludes.add(expandedId)
-        }
-      }
-      if (labelIncludes.size > 0) {
-        result = result.filter(s =>
-          s.labels?.some(l => labelIncludes.has(extractLabelId(l)))
-        )
-      }
-      if (labelExcludes.size > 0) {
-        result = result.filter(s =>
-          !s.labels?.some(l => labelExcludes.has(extractLabelId(l)))
-        )
-      }
-    }
-    // Filter by project — supports include/exclude on session.projectId
-    if (projectFilter.size > 0) {
-      const projectIncludes = new Set<string>()
-      const projectExcludes = new Set<string>()
-      for (const [id, mode] of projectFilter) {
-        if (mode === 'include') projectIncludes.add(id)
-        else projectExcludes.add(id)
-      }
-      if (projectIncludes.size > 0) {
-        result = result.filter(s => {
-          const pid = (s as { projectId?: string }).projectId
-          return pid !== undefined && projectIncludes.has(pid)
-        })
-      }
-      if (projectExcludes.size > 0) {
-        result = result.filter(s => {
-          const pid = (s as { projectId?: string }).projectId
-          return pid === undefined || !projectExcludes.has(pid)
-        })
-      }
-    }
-
-    return result
-  }, [workspaceSessionMetas, activeSessionMetas, sessionFilter, listFilter, labelFilter, projectFilter, labelConfigs])
-
-  // Derive "pinned" (non-removable) filters from the current sessionFilter path.
-  // These represent filters that are implicit in the current deeplink/route and
-  // should be displayed as fixed chips in the filter bar that users cannot remove.
-  const pinnedFilters = useMemo(() => {
-    if (!sessionFilter) return { pinnedStatusId: null as string | null, pinnedLabelId: null as string | null, pinnedFlagged: false }
-    switch (sessionFilter.kind) {
-      case 'state':
-        return { pinnedStatusId: sessionFilter.stateId, pinnedLabelId: null, pinnedFlagged: false }
-      case 'label':
-        // Don't pin the __all__ pseudo-label — that just means "any label"
-        return { pinnedStatusId: null, pinnedLabelId: sessionFilter.labelId !== '__all__' ? sessionFilter.labelId : null, pinnedFlagged: false }
-      case 'flagged':
-        return { pinnedStatusId: null, pinnedLabelId: null, pinnedFlagged: true }
-      default:
-        return { pinnedStatusId: null, pinnedLabelId: null, pinnedFlagged: false }
-    }
-  }, [sessionFilter])
 
   // Ensure session messages are loaded when selected
   React.useEffect(() => {
@@ -1415,14 +741,13 @@ function AppShellContent({
   // Wrap delete handler to clear selection when deleting the currently selected session
   // This prevents stale state during re-renders that could cause crashes
   const handleDeleteSession = useCallback(async (sessionId: string, skipConfirmation?: boolean): Promise<boolean> => {
-    // Clear selection first if this is the selected session
     if (session.selected === sessionId) {
       setSession({ selected: null })
     }
     return onDeleteSession(sessionId, skipConfirmation)
   }, [session.selected, setSession, onDeleteSession])
 
-  // Extend context value with local overrides (wrapped onDeleteSession, sources, skills, labels, enabledModes, rightSidebarOpenButton, effectiveSessionStatuses)
+  // Extend context value with local overrides
   const appShellContextValue = React.useMemo<AppShellContextType>(() => ({
     ...contextValue,
     onDeleteSession: handleDeleteSession,
@@ -1433,9 +758,8 @@ function AppShellContent({
     labels: displayLabelConfigs,
     onSessionLabelsChange: handleSessionLabelsChange,
     enabledModes,
-    sessionStatuses: effectiveSessionStatuses,
+    sessionStatuses,
     onSessionSourcesChange: handleSessionSourcesChange,
-    onJumpToTaskSessions: handleJumpToTaskSessions,
     rightSidebarButton: null,
     isCompactMode: isAutoCompact,
     // Search state for ChatDisplay highlighting
@@ -1450,20 +774,12 @@ function AppShellContent({
     automationTestResults,
     getAutomationHistory,
     onReplayAutomation: handleReplayAutomation,
-  }), [contextValue, handleDeleteSession, sources, skills, chatStarters, activeSessionWorkingDirectory, displayLabelConfigs, handleSessionLabelsChange, enabledModes, effectiveSessionStatuses, handleSessionSourcesChange, handleJumpToTaskSessions, isAutoCompact, searchActive, searchQuery, handleChatMatchInfoChange, handleTestAutomation, handleToggleAutomation, handleDuplicateAutomation, handleDeleteAutomation, automationTestResults, getAutomationHistory, handleReplayAutomation])
+  }), [contextValue, handleDeleteSession, sources, skills, chatStarters, activeSessionWorkingDirectory, displayLabelConfigs, handleSessionLabelsChange, enabledModes, sessionStatuses, handleSessionSourcesChange, isAutoCompact, searchActive, searchQuery, handleChatMatchInfoChange, handleTestAutomation, handleToggleAutomation, handleDuplicateAutomation, handleDeleteAutomation, automationTestResults, getAutomationHistory, handleReplayAutomation])
 
-  // Persist expanded folders to localStorage (workspace-scoped)
-  React.useEffect(() => {
-    if (!activeWorkspaceId) return
-    storage.set(storage.KEYS.expandedFolders, [...expandedFolders], activeWorkspaceId)
-  }, [expandedFolders, activeWorkspaceId])
-
-  // Persist sidebar visibility to localStorage
+  // Persist column visibility and focus mode
   React.useEffect(() => {
     storage.set(storage.KEYS.sidebarVisible, isSidebarVisible)
   }, [isSidebarVisible])
-
-  // Persist focus mode state to localStorage
   React.useEffect(() => {
     storage.set(storage.KEYS.focusModeEnabled, isSidebarAndNavigatorHidden)
   }, [isSidebarAndNavigatorHidden])
@@ -1486,101 +802,28 @@ function AppShellContent({
     return cleanup
   }, [handleToggleSidebar])
 
-  // Persist per-view filter map to localStorage (workspace-scoped)
-  React.useEffect(() => {
-    if (!activeWorkspaceId) return
-    storage.set(storage.KEYS.viewFilters, viewFiltersMap, activeWorkspaceId)
-  }, [viewFiltersMap, activeWorkspaceId])
+  // Back to the session list, keeping the last open session
+  const handleBackToSessions = useCallback(() => {
+    navigate(routes.view.allSessions(session.selected ?? undefined))
+  }, [session.selected])
 
-  // Persist sidebar section collapsed states (workspace-scoped)
-  React.useEffect(() => {
-    if (!activeWorkspaceId) return
-    storage.set(storage.KEYS.collapsedSidebarItems, [...collapsedItems], activeWorkspaceId)
-  }, [collapsedItems, activeWorkspaceId])
+  const handleToggleArchived = useCallback(() => {
+    navigate(showingArchived ? routes.view.allSessions() : routes.view.archived())
+  }, [showingArchived])
 
-  const handleAllSessionsClick = useCallback(() => {
-    navigate(routes.view.allSessions())
-  }, [])
-
-  const handleFlaggedClick = useCallback(() => {
-    navigate(routes.view.flagged())
-  }, [])
-
-  const handleArchivedClick = useCallback(() => {
-    navigate(routes.view.archived())
-  }, [])
-
-  // Handler for individual todo state views
-  const handleSessionStatusClick = useCallback((stateId: SessionStatusId) => {
-    navigate(routes.view.state(stateId))
-  }, [])
-
-  // Handler for label filter views (hierarchical — includes descendant labels)
-  const handleLabelClick = useCallback((labelId: string) => {
-    navigate(routes.view.label(labelId))
-  }, [])
-
-  const handleViewClick = useCallback((viewId: string) => {
-    navigate(routes.view.view(viewId))
-  }, [])
-
-  // DnD handler: reorder statuses (flat list drag-and-drop)
-  // Sets optimistic order immediately for instant UI feedback, then fires IPC.
-  const handleStatusReorder = useCallback((orderedIds: string[]) => {
-    if (!activeWorkspaceId) return
-    setOptimisticStatusOrder(orderedIds)
-    window.electronAPI.reorderStatuses(activeWorkspaceId, orderedIds)
-  }, [activeWorkspaceId])
-
-  // Handler for sources view (all sources)
-  const handleSourcesClick = useCallback(() => {
-    navigate(routes.view.sources())
-  }, [])
-
-  // Handlers for source type filter views (subcategories in Sources dropdown)
-  const handleSourcesApiClick = useCallback(() => {
-    navigate(routes.view.sourcesApi())
-  }, [])
-
-  const handleSourcesMcpClick = useCallback(() => {
-    navigate(routes.view.sourcesMcp())
-  }, [])
-
-  const handleSourcesLocalClick = useCallback(() => {
-    navigate(routes.view.sourcesLocal())
-  }, [])
-
-  // Handler for skills view
-  const handleSkillsClick = useCallback(() => {
-    navigate(routes.view.skills())
-  }, [])
-
-  // Handlers for automations view
-  const handleAutomationsClick = useCallback(() => {
-    navigate(routes.view.automations())
-  }, [])
-
-  // Handler for projects view
-  const handleProjectsClick = useCallback(() => {
-    navigate(routes.view.projects())
-  }, [])
-
-  // Handler for pages view
-  const handlePagesClick = useCallback(() => {
-    navigate(routes.view.pages())
-  }, [])
-
-  const handleAutomationsScheduledClick = useCallback(() => {
-    navigate(routes.view.automationsScheduled())
-  }, [])
-
-  const handleAutomationsEventClick = useCallback(() => {
-    navigate(routes.view.automationsEvent())
-  }, [])
-
-  const handleAutomationsAgenticClick = useCallback(() => {
-    navigate(routes.view.automationsAgentic())
-  }, [])
+  // Footer: open a capability panel in the column; clicking the open one returns to the sessions
+  const handleNavSectionSelect = useCallback((section: Exclude<NavSection, 'sessions'>) => {
+    if (section === navSection) {
+      handleBackToSessions()
+      return
+    }
+    switch (section) {
+      case 'sources': navigate(routes.view.sources()); break
+      case 'skills': navigate(routes.view.skills()); break
+      case 'automations': navigate(routes.view.automationsScheduled()); break
+      case 'settings': navigate(routes.view.settings()); break
+    }
+  }, [navSection, handleBackToSessions])
 
   // Handler for settings view. With no arg → bare `settings` route (navigator-only
   // in compact mode, App fallback on desktop). With an arg → `settings/<subpage>`.
@@ -1588,149 +831,7 @@ function AppShellContent({
     navigate(routes.view.settings(subpage))
   }, [])
 
-  // Handler for What's New overlay
-  const handleWhatsNewClick = useCallback(async () => {
-    const content = await window.electronAPI.getReleaseNotes()
-    setReleaseNotesContent(content)
-    setShowWhatsNew(true)
-    setHasUnseenReleaseNotes(false)
-    // Update last seen version
-    const latestVersion = await window.electronAPI.getLatestReleaseVersion()
-    if (latestVersion) {
-      storage.set(storage.KEYS.whatsNewLastSeenVersion, latestVersion)
-    }
-  }, [])
-
-  // ============================================================================
-  // EDIT POPOVER STATE
-  // ============================================================================
-  // State to control which EditPopover is open (triggered from context menus).
-  // We use controlled popovers instead of deep links so the user can type
-  // their request in the popover UI before opening a new chat window.
-  // add-source variants: add-source (generic), add-source-api, add-source-mcp, add-source-local
-  const [editPopoverOpen, setEditPopoverOpen] = useState<'statuses' | 'labels' | 'views' | 'add-source' | 'add-source-api' | 'add-source-mcp' | 'add-source-local' | 'add-skill' | 'add-label' | 'automation-config' | 'add-project' | null>(null)
-
-  // Stores the Y position of the last right-clicked sidebar item so the EditPopover
-  // appears near it rather than at a fixed location. Updated synchronously before
-  // the setTimeout that opens the popover, ensuring the ref is set before render.
-  const editPopoverAnchorY = useRef<number>(120)
-  // Tracks which label was right-clicked when opening label EditPopovers,
-  // so the agent knows the target for commands like "make this red" or "add below this"
-  const editLabelTargetId = useRef<string | undefined>(undefined)
-
-  // Stores the trigger element (button) so we can keep it highlighted while the
-  // EditPopover is open (after Radix removes data-state="open" on context menu close).
-  const editPopoverTriggerRef = useRef<Element | null>(null)
-
-  // Captures the bounding rect of the currently-open context menu trigger (the button).
-  // Radix sets data-state="open" on the button (via ContextMenuTrigger asChild)
-  // while the menu is visible, so we can locate it in the DOM at click time.
-  const captureContextMenuPosition = useCallback(() => {
-    const trigger = document.querySelector('.group\\/section > [data-state="open"]')
-    if (trigger) {
-      const rect = trigger.getBoundingClientRect()
-      editPopoverAnchorY.current = rect.top
-      editPopoverTriggerRef.current = trigger
-    }
-  }, [])
-
-  // Sync data-edit-active attribute on the trigger element with EditPopover open state.
-  // This keeps the sidebar item visually highlighted while the popover is shown,
-  // since Radix's data-state="open" disappears when the context menu closes.
-  useEffect(() => {
-    const el = editPopoverTriggerRef.current
-    if (!el) return
-    if (editPopoverOpen) {
-      el.setAttribute('data-edit-active', 'true')
-    } else {
-      el.removeAttribute('data-edit-active')
-      editPopoverTriggerRef.current = null
-    }
-  }, [editPopoverOpen])
-
-  // Handler for "Configure Statuses" context menu action
-  // Opens the EditPopover for status configuration
-  // Uses setTimeout to delay opening until after context menu closes,
-  // preventing the popover from immediately closing due to focus shift
-  const openConfigureStatuses = useCallback(() => {
-    captureContextMenuPosition()
-    setTimeout(() => setEditPopoverOpen('statuses'), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Configure Labels" context menu action
-  // Opens the EditPopover for label configuration, storing which label was right-clicked
-  const openConfigureLabels = useCallback((labelId?: string) => {
-    editLabelTargetId.current = labelId
-    captureContextMenuPosition()
-    setTimeout(() => setEditPopoverOpen('labels'), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Edit Views" context menu action
-  // Opens the EditPopover for view configuration
-  const openConfigureViews = useCallback(() => {
-    captureContextMenuPosition()
-    setTimeout(() => setEditPopoverOpen('views'), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Delete View" context menu action
-  // Removes the view from config by filtering it out and saving
-  const handleDeleteView = useCallback(async (viewId: string) => {
-    if (!activeWorkspace?.id) return
-    try {
-      const updated = viewConfigs.filter(v => v.id !== viewId)
-      await window.electronAPI.saveViews(activeWorkspace.id, updated)
-    } catch (err) {
-      console.error('[AppShell] Failed to delete view:', err)
-    }
-  }, [activeWorkspace?.id, viewConfigs])
-
-  // Handler for "Add New Label" context menu action
-  // Opens the EditPopover with 'add-label' context, storing which label was right-clicked
-  // so the agent knows to add the new label relative to it
-  const handleAddLabel = useCallback((parentId?: string) => {
-    editLabelTargetId.current = parentId
-    captureContextMenuPosition()
-    setTimeout(() => setEditPopoverOpen('add-label'), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Delete Label" context menu action
-  // Deletes the label and all its descendants, stripping from sessions
-  const handleDeleteLabel = useCallback(async (labelId: string) => {
-    if (!activeWorkspace?.id) return
-    try {
-      await window.electronAPI.deleteLabel(activeWorkspace.id, labelId)
-    } catch (err) {
-      console.error('[AppShell] Failed to delete label:', err)
-    }
-  }, [activeWorkspace?.id])
-
-  // Handler for "Add Source" context menu action
-  // Opens the EditPopover for adding a new source
-  // Optional sourceType param allows filter-aware context (from subcategory menus or filtered views)
-  const openAddSource = useCallback((sourceType?: 'api' | 'mcp' | 'local') => {
-    captureContextMenuPosition()
-    const key = sourceType ? `add-source-${sourceType}` as const : 'add-source' as const
-    setTimeout(() => setEditPopoverOpen(key), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Add Skill" context menu action
-  // Opens the EditPopover for adding a new skill
-  const openAddSkill = useCallback(() => {
-    captureContextMenuPosition()
-    setTimeout(() => setEditPopoverOpen('add-skill'), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Add Automation" context menu action
-  // Opens the EditPopover for adding a new automation
-  const openAddAutomation = useCallback(() => {
-    captureContextMenuPosition()
-    setTimeout(() => setEditPopoverOpen('automation-config'), 50)
-  }, [captureContextMenuPosition])
-
-  // Handler for "Add Project" context menu action — creates a project directly
-  // Open the "Create Project" dialog so the user can provide a name up front.
-  // The previous flow auto-created with the default name and produced ugly
-  // permanent slugs (new-project, new-project-1, …).
+  // "New project" opens a name dialog so slugs stay meaningful
   const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false)
   const openAddProject = useCallback(() => {
     if (!activeWorkspace?.id) return
@@ -1746,54 +847,36 @@ function AppShellContent({
       console.error('[AppShell] Failed to create project:', err)
       toast.error(t('projectsList.createFailed'))
     }
-  }, [activeWorkspace?.id, navigate, t])
+  }, [activeWorkspace?.id, t])
 
-  /**
-   * Resolve the "inherit sole active filter" rule for new sessions. Only
-   * include-mode filters are candidates — an excluded status/label/project must
-   * never be inherited (#970). See resolveInheritedFilterParams.
-   */
-  const resolveInheritedNewSessionParams = useCallback(
-    () => resolveInheritedFilterParams(listFilter, labelFilter, projectFilter),
-    [listFilter, labelFilter, projectFilter]
-  )
-
-  // Create a new chat and select it
-  const handleNewChat = useCallback((newPanel: boolean = false) => {
+  // Create a new chat and select it; `project` binds it (and its working folder) to a project
+  const handleNewChat = useCallback((newPanel: boolean = false, project?: string) => {
     if (!activeWorkspace) return
-
-    // Exit search mode and switch to All Sessions
     setSearchActive(false)
     setSearchQuery('')
-
-    // Inherit sole-active filter into the new session when unambiguous.
-    const inherited = resolveInheritedNewSessionParams()
-
-    // Delegate to NavigationContext which handles session creation
     navigate(
-      routes.action.newSession(inherited ?? undefined),
+      routes.action.newSession(project ? { project } : undefined),
       newPanel ? { newPanel: true, targetLaneId: 'main' } : undefined
     )
-
     // Focus the chat input after navigation completes
     setTimeout(() => focusZone('chat', { intent: 'programmatic' }), 50)
-  }, [activeWorkspace, focusZone, navigate, resolveInheritedNewSessionParams])
+  }, [activeWorkspace, focusZone])
+
+  const handleOpenProject = useCallback((projectSlug: string) => {
+    navigate(routes.view.projects(projectSlug))
+  }, [])
 
   // Create a brand new dedicated browser window and focus it.
-  // Intentionally unbound: this action should always create a NEW window.
   const handleNewBrowserWindow = useCallback(async () => {
     try {
-      const instanceId = await window.electronAPI.browserPane.create({
-        show: true,
-      })
+      const instanceId = await window.electronAPI.browserPane.create({ show: true })
       await window.electronAPI.browserPane.focus(instanceId)
     } catch (error) {
       console.error('[Chat] Failed to create browser window:', error)
       toast.error(t('toast.failedToCreateBrowser'))
     }
-  }, [])
+  }, [t])
 
-  // Delete Source - simplified since agents system is removed
   const handleDeleteSource = useCallback(async (sourceSlug: string) => {
     if (!activeWorkspace) return
     try {
@@ -1803,9 +886,8 @@ function AppShellContent({
       console.error('[Chat] Failed to delete source:', error)
       toast.error(t('toast.failedToDeleteSource'))
     }
-  }, [activeWorkspace])
+  }, [activeWorkspace, t])
 
-  // Delete Skill
   const handleDeleteSkill = useCallback(async (skillSlug: string) => {
     if (!activeWorkspace) return
     try {
@@ -1815,552 +897,51 @@ function AppShellContent({
       console.error('[Chat] Failed to delete skill:', error)
       toast.error(t('toast.failedToDeleteSkill'))
     }
-  }, [activeWorkspace])
+  }, [activeWorkspace, t])
 
   // Respond to menu bar "New Chat" trigger
   const menuTriggerRef = useRef(menuNewChatTrigger)
   useEffect(() => {
-    // Skip initial render
     if (menuTriggerRef.current === menuNewChatTrigger) return
     menuTriggerRef.current = menuNewChatTrigger
     handleNewChat()
   }, [menuNewChatTrigger, handleNewChat])
 
-  // Unified sidebar items: nav buttons only (agents system removed)
-  type SidebarItem = {
-    id: string
-    type: 'nav'
-    action?: () => void
-  }
+  const newChatHotkey = useActionLabel('app.newChat').hotkey
 
-  const unifiedSidebarItems = React.useMemo((): SidebarItem[] => {
-    const result: SidebarItem[] = []
+  // Header of the column for the open capability panel
+  const capabilityTitle = navSection === 'sources'
+    ? t('sidebar.mcps')
+    : navSection === 'skills'
+      ? t('sidebar.skills')
+      : navSection === 'automations'
+        ? t('sidebar.automations')
+        : t('sidebar.settings')
 
-    // 1. Sessions section: All Sessions (expandable) with status items, Flagged, Archived as children
-    result.push({ id: 'nav:allSessions', type: 'nav', action: handleAllSessionsClick })
-    for (const state of effectiveSessionStatuses) {
-      result.push({ id: `nav:state:${state.id}`, type: 'nav', action: () => handleSessionStatusClick(state.id) })
-    }
-    result.push({ id: 'nav:flagged', type: 'nav', action: handleFlaggedClick })
-    result.push({ id: 'nav:archived', type: 'nav', action: handleArchivedClick })
-
-    // 2. Labels section header + regular label tree for keyboard nav
-    result.push({ id: 'nav:labels', type: 'nav', action: () => handleLabelClick('__all__') })
-    // Flatten regular label tree for keyboard navigation (depth-first)
-    const flattenTree = (nodes: LabelTreeNode[]) => {
-      for (const node of nodes) {
-        if (node.label) {
-          result.push({ id: `nav:label:${node.fullId}`, type: 'nav', action: () => handleLabelClick(node.fullId) })
-        }
-        if (node.children.length > 0) flattenTree(node.children)
-      }
-    }
-    flattenTree(labelTree)
-
-    // 3. Sources, Skills, Projects, Pages, Automations, Settings (visual order)
-    result.push({ id: 'nav:sources', type: 'nav', action: handleSourcesClick })
-    result.push({ id: 'nav:skills', type: 'nav', action: handleSkillsClick })
-    result.push({ id: 'nav:projects', type: 'nav', action: handleProjectsClick })
-    result.push({ id: 'nav:pages', type: 'nav', action: handlePagesClick })
-    result.push({ id: 'nav:automations', type: 'nav', action: handleAutomationsClick })
-    result.push({ id: 'nav:settings', type: 'nav', action: () => handleSettingsClick() })
-    result.push({ id: 'nav:whats-new', type: 'nav', action: handleWhatsNewClick })
-
-    return result
-  }, [handleAllSessionsClick, handleFlaggedClick, handleArchivedClick, handleSessionStatusClick, effectiveSessionStatuses, handleLabelClick, labelConfigs, labelTree, viewConfigs, handleViewClick, handleSourcesClick, handleSkillsClick, handleProjectsClick, handlePagesClick, handleAutomationsClick, handleSettingsClick, handleWhatsNewClick])
-
-  // Toggle folder expanded state
-  const handleToggleFolder = React.useCallback((path: string) => {
-    setExpandedFolders(prev => {
-      const next = new Set(prev)
-      if (next.has(path)) {
-        next.delete(path)
-      } else {
-        next.add(path)
-      }
-      return next
-    })
-  }, [])
-
-  // Get props for any sidebar item (unified roving tabindex pattern)
-  const getSidebarItemProps = React.useCallback((id: string) => ({
-    tabIndex: focusedSidebarItemId === id ? 0 : -1,
-    'data-focused': focusedSidebarItemId === id,
-    ref: (el: HTMLElement | null) => {
-      if (el) {
-        sidebarItemRefs.current.set(id, el)
-      } else {
-        sidebarItemRefs.current.delete(id)
-      }
-    },
-  }), [focusedSidebarItemId])
-
-  // Unified sidebar keyboard navigation
-  const handleSidebarKeyDown = React.useCallback((e: React.KeyboardEvent) => {
-    if (!sidebarFocused || unifiedSidebarItems.length === 0) return
-
-    const currentIndex = unifiedSidebarItems.findIndex(item => item.id === focusedSidebarItemId)
-    const currentItem = currentIndex >= 0 ? unifiedSidebarItems[currentIndex] : null
-
-    switch (e.key) {
-      case 'ArrowDown': {
-        e.preventDefault()
-        const nextIndex = currentIndex < unifiedSidebarItems.length - 1 ? currentIndex + 1 : 0
-        const nextItem = unifiedSidebarItems[nextIndex]
-        setFocusedSidebarItemId(nextItem.id)
-        sidebarItemRefs.current.get(nextItem.id)?.focus()
-        break
-      }
-      case 'ArrowUp': {
-        e.preventDefault()
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : unifiedSidebarItems.length - 1
-        const prevItem = unifiedSidebarItems[prevIndex]
-        setFocusedSidebarItemId(prevItem.id)
-        sidebarItemRefs.current.get(prevItem.id)?.focus()
-        break
-      }
-      case 'ArrowLeft': {
-        e.preventDefault()
-        // At boundary - do nothing (Left doesn't change zones from sidebar)
-        break
-      }
-      case 'ArrowRight': {
-        e.preventDefault()
-        // Move to next zone (navigator) - keyboard navigation
-        focusZone('navigator', { intent: 'keyboard' })
-        break
-      }
-      case 'Enter':
-      case ' ': {
-        e.preventDefault()
-        if (currentItem?.type === 'nav' && currentItem.action) {
-          currentItem.action()
-        }
-        break
-      }
-      case 'Home': {
-        e.preventDefault()
-        if (unifiedSidebarItems.length > 0) {
-          const firstItem = unifiedSidebarItems[0]
-          setFocusedSidebarItemId(firstItem.id)
-          sidebarItemRefs.current.get(firstItem.id)?.focus()
-        }
-        break
-      }
-      case 'End': {
-        e.preventDefault()
-        if (unifiedSidebarItems.length > 0) {
-          const lastItem = unifiedSidebarItems[unifiedSidebarItems.length - 1]
-          setFocusedSidebarItemId(lastItem.id)
-          sidebarItemRefs.current.get(lastItem.id)?.focus()
-        }
-        break
-      }
-    }
-  }, [sidebarFocused, unifiedSidebarItems, focusedSidebarItemId, focusZone])
-
-  // Focus sidebar item when sidebar zone gains focus
-  React.useEffect(() => {
-    if (sidebarFocused && unifiedSidebarItems.length > 0) {
-      // Set focused item if not already set
-      const itemId = focusedSidebarItemId || unifiedSidebarItems[0].id
-      if (!focusedSidebarItemId) {
-        setFocusedSidebarItemId(itemId)
-      }
-      // Actually focus the DOM element
-      requestAnimationFrame(() => {
-        sidebarItemRefs.current.get(itemId)?.focus()
-      })
-    }
-  }, [sidebarFocused, focusedSidebarItemId, unifiedSidebarItems])
-
-  // Get title based on navigation state
-  const listTitle = React.useMemo(() => {
-    // Sources navigator
-    if (isSourcesNavigation(navState)) {
-      return t("sidebar.sources")
-    }
-
-    // Skills navigator
-    if (isSkillsNavigation(navState)) {
-      return t("sidebar.allSkills")
-    }
-
-    // Projects navigator
-    if (isProjectsNavigation(navState)) {
-      return t("sidebar.allProjects")
-    }
-
-    // Pages navigator
-    if (isPagesNavigation(navState)) {
-      return t("sidebar.allPages")
-    }
-
-    // Automations navigator
-    if (isAutomationsNavigation(navState)) {
-      if (!automationFilter) return t("sidebar.allAutomations")
-      switch (automationFilter.automationType) {
-        case 'scheduled': return t("sidebar.scheduled")
-        case 'event': return t("sidebar.eventBased")
-        case 'agentic': return t("sidebar.agentic")
-        default: return t("sidebar.allAutomations")
-      }
-    }
-
-    // Settings navigator
-    if (isSettingsNavigation(navState)) return t("sidebar.settings")
-
-    // Sessions navigator - use sessionFilter
-    if (!sessionFilter) return t("sidebar.allSessions")
-
-    switch (sessionFilter.kind) {
-      case 'flagged':
-        return t("sidebar.flagged")
-      case 'state': {
-        const state = effectiveSessionStatuses.find(s => s.id === sessionFilter.stateId)
-        return state ? t(`status.${state.id}`, state.label) : t("sidebar.allSessions")
-      }
-      case 'label':
-        return sessionFilter.labelId === '__all__' ? t("sidebar.labels") : getLabelDisplayName(labelConfigs, sessionFilter.labelId)
-      case 'view':
-        return sessionFilter.viewId === '__all__' ? t("sidebar.views") : viewConfigs.find(v => v.id === sessionFilter.viewId)?.name || t("sidebar.views")
-      default:
-        return t("sidebar.allSessions")
-    }
-  }, [navState, t, sessionFilter, automationFilter, labelConfigs, viewConfigs, effectiveSessionStatuses])
-
-  // Build recursive sidebar items from the shared display-sorted label tree.
-  // Each node renders with condensed height (compact: true) since many labels expected.
-  // Clicking any label navigates to its filter view; the chevron toggles expand/collapse.
-  const buildLabelSidebarItems = useCallback((nodes: LabelTreeNode[]): any[] => {
-    return nodes.map(node => {
-      const hasChildren = node.children.length > 0
-      const isActive = sessionFilter?.kind === 'label' && sessionFilter.labelId === node.fullId
-      const count = labelCounts[node.fullId] || 0
-
-      const item: any = {
-        id: `nav:label:${node.fullId}`,
-        title: node.label?.name || node.segment.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-        label: count > 0 ? String(count) : undefined,
-        // Show label type icon (Hash/Calendar/Type) right-aligned before count, with tooltip explaining the type
-        afterTitle: node.label?.valueType ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="flex items-center"><LabelValueTypeIcon valueType={node.label.valueType} size={10} /></span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {t("sidebar.labelValueTypeTooltip", { valueType: t(`sidebar.labelValueType.${node.label.valueType}`) })}
-            </TooltipContent>
-          </Tooltip>
-        ) : undefined,
-        icon: node.label && activeWorkspace?.id ? (
-          <LabelIcon
-            label={node.label}
-            size="sm"
-            hasChildren={hasChildren}
-          />
-        ) : <Tag className="h-3.5 w-3.5" />,
-        variant: isActive ? "default" : "ghost",
-        compact: true, // Reduced height for label items (many labels expected)
-        // All labels navigate on click — parent and leaf alike
-        onClick: () => handleLabelClick(node.fullId),
-        contextMenu: {
-          type: 'labels' as const,
-          labelId: node.fullId,
-          onConfigureLabels: openConfigureLabels,
-          onAddLabel: handleAddLabel,
-          onDeleteLabel: handleDeleteLabel,
-        },
-      }
-
-      if (hasChildren) {
-        item.expandable = true
-        item.expanded = isExpanded(`nav:label:${node.fullId}`)
-        // Chevron toggles expand/collapse independently of navigation
-        item.onToggle = () => toggleExpanded(`nav:label:${node.fullId}`)
-        item.items = buildLabelSidebarItems(node.children)
-      }
-
-      return item
-    })
-  }, [sessionFilter, labelCounts, activeWorkspace?.id, handleLabelClick, isExpanded, toggleExpanded, openConfigureLabels, handleAddLabel, handleDeleteLabel])
-
-
-  // Sidebar navigation (scrolls) and the pinned footer (Settings, What's New — always visible).
-  const sidebarLinks: SidebarNavItem[] = [
-    // --- Sessions Section ---
-    // All Sessions: expandable with status children (sortable) + Flagged & Archived as trailing items
-    {
-      id: "nav:allSessions",
-      title: t("sidebar.allSessions"),
-      label: String(workspaceSessionMetas.length),
-      icon: Inbox,
-      variant: sessionFilter?.kind === 'allSessions' ? "default" : "ghost",
-      onClick: handleAllSessionsClick,
-      expandable: true,
-      expanded: isExpanded('nav:allSessions'),
-      onToggle: () => toggleExpanded('nav:allSessions'),
-      contextMenu: {
-        type: 'allSessions',
-        onConfigureStatuses: openConfigureStatuses,
-        onMarkAllRead: () => {
-          if (!activeWorkspaceId) return
-          // Optimistic: clear hasUnread on all workspace session metas
-          setSessionMetaMap(prev => {
-            const next = new Map(prev)
-            for (const [id, meta] of next) {
-              if (meta.workspaceId === activeWorkspaceId && meta.hasUnread) {
-                next.set(id, { ...meta, hasUnread: false })
-              }
-            }
-            return next
-          })
-          window.electronAPI.markAllSessionsRead(activeWorkspaceId)
-        },
-      },
-      // Enable flat DnD reorder for status items
-      sortable: { onReorder: handleStatusReorder },
-      items: [
-        // Status items (sortable via SortableStatusList)
-        ...effectiveSessionStatuses.map(state => ({
-          id: `nav:state:${state.id}`,
-          title: t(`status.${state.id}`, state.label),
-          label: String(sessionStatusCounts[state.id] || 0),
-          icon: state.icon,
-          iconColor: state.resolvedColor,
-          iconColorable: state.iconColorable,
-          variant: (sessionFilter?.kind === 'state' && sessionFilter.stateId === state.id ? "default" : "ghost") as "default" | "ghost",
-          onClick: () => handleSessionStatusClick(state.id),
-          contextMenu: {
-            type: 'status' as const,
-            statusId: state.id,
-            onConfigureStatuses: openConfigureStatuses,
-          },
-        })),
-        // Separator: SortableStatusList splits here — items after become non-sortable trailingItems
-        { id: 'separator:states-flagged', type: 'separator' as const },
-        // Flagged (trailing, non-sortable)
-        {
-          id: "nav:flagged",
-          title: t("sidebar.flagged"),
-          label: String(flaggedCount),
-          icon: <Flag className="h-3.5 w-3.5" />,
-          variant: (sessionFilter?.kind === 'flagged' ? "default" : "ghost") as "default" | "ghost",
-          onClick: handleFlaggedClick,
-        },
-        // Archived (trailing, non-sortable)
-        {
-          id: "nav:archived",
-          title: t("sidebar.archived"),
-          label: archivedCount > 0 ? String(archivedCount) : undefined,
-          icon: Archive,
-          variant: (sessionFilter?.kind === 'archived' ? "default" : "ghost") as "default" | "ghost",
-          onClick: handleArchivedClick,
-        },
-      ],
-    },
-    // Labels: navigable header (shows all labeled sessions) + hierarchical tree (drag-and-drop reorder + re-parent)
-    {
-      id: "nav:labels",
-      title: t("sidebar.labels"),
-      icon: Tag,
-      // Only highlighted when "Labels" itself is selected (not sub-labels)
-      variant: (sessionFilter?.kind === 'label' && sessionFilter.labelId === '__all__') ? "default" as const : "ghost" as const,
-      // Clicking navigates to "all labeled sessions" view
-      onClick: () => handleLabelClick('__all__'),
-      expandable: true,
-      expanded: isExpanded('nav:labels'),
-      onToggle: () => toggleExpanded('nav:labels'),
-      contextMenu: {
-        type: 'labels' as const,
-        onConfigureLabels: openConfigureLabels,
-        onAddLabel: handleAddLabel,
-      },
-      items: buildLabelSidebarItems(labelTree),
-    },
-    // --- Workspace section ---
-    { id: "section:workspace", type: "section", title: t("sidebar.workspaceSection") },
-    // --- Sources & Skills Section ---
-    {
-      id: "nav:sources",
-      title: t("sidebar.sources"),
-      label: String(sources.length),
-      icon: DatabaseZap,
-      variant: (isSourcesNavigation(navState) && !sourceFilter) ? "default" : "ghost",
-      onClick: handleSourcesClick,
-      dataTutorial: "sources-nav",
-      expandable: true,
-      expanded: isExpanded('nav:sources'),
-      onToggle: () => toggleExpanded('nav:sources'),
-      contextMenu: {
-        type: 'sources',
-        onAddSource: () => openAddSource(),
-      },
-      items: [
-        {
-          id: "nav:sources:api",
-          title: t("sidebar.apis"),
-          label: String(sourceTypeCounts.api),
-          icon: Globe,
-          variant: (sourceFilter?.kind === 'type' && sourceFilter.sourceType === 'api') ? "default" : "ghost",
-          onClick: handleSourcesApiClick,
-          contextMenu: {
-            type: 'sources' as const,
-            onAddSource: () => openAddSource('api'),
-            sourceType: 'api',
-          },
-        },
-        {
-          id: "nav:sources:mcp",
-          title: t("sidebar.mcps"),
-          label: String(sourceTypeCounts.mcp),
-          icon: <McpIcon className="h-3.5 w-3.5" />,
-          variant: (sourceFilter?.kind === 'type' && sourceFilter.sourceType === 'mcp') ? "default" : "ghost",
-          onClick: handleSourcesMcpClick,
-          contextMenu: {
-            type: 'sources' as const,
-            onAddSource: () => openAddSource('mcp'),
-            sourceType: 'mcp',
-          },
-        },
-        {
-          id: "nav:sources:local",
-          title: t("sidebar.localFolders"),
-          label: String(sourceTypeCounts.local),
-          icon: FolderOpen,
-          variant: (sourceFilter?.kind === 'type' && sourceFilter.sourceType === 'local') ? "default" : "ghost",
-          onClick: handleSourcesLocalClick,
-          contextMenu: {
-            type: 'sources' as const,
-            onAddSource: () => openAddSource('local'),
-            sourceType: 'local',
-          },
-        },
-      ],
-    },
-    {
-      id: "nav:skills",
-      title: t("sidebar.skills"),
-      label: String(skills.length),
-      icon: Zap,
-      variant: isSkillsNavigation(navState) ? "default" : "ghost",
-      onClick: handleSkillsClick,
-      contextMenu: {
-        type: 'skills',
-        onAddSkill: openAddSkill,
-      },
-    },
-    {
-      id: "nav:projects",
-      title: t("sidebar.projects"),
-      label: String(projects.length),
-      icon: FolderKanban,
-      // Highlight only when on Projects view itself, not when a child is "active" (jumped-to filter)
-      variant: isProjectsNavigation(navState) ? "default" : "ghost",
-      onClick: handleProjectsClick,
-      expandable: projects.length > 0,
-      expanded: isExpanded('nav:projects'),
-      onToggle: () => toggleExpanded('nav:projects'),
-      contextMenu: {
-        type: 'projects' as const,
-        onAddProject: openAddProject,
-      },
-      items: projects.map(p => ({
-        id: `nav:projects:${p.config.id}`,
-        title: p.config.name,
-        icon: FolderKanban,
-        // Highlight when on allSessions view AND filter includes this project (the jump-to state)
-        variant: (sessionFilter?.kind === 'allSessions' && projectFilter.get(p.config.id) === 'include') ? "default" as const : "ghost" as const,
-        onClick: () => handleJumpToProjectSessions(p.config.id),
-      })),
-    },
-    {
-      id: "nav:pages",
-      title: t("sidebar.pages"),
-      label: String(pages.length),
-      icon: PanelsTopLeft,
-      // Highlight on the library grid only, not when a page is open (mirrors Projects)
-      variant: (isPagesNavigation(navState) && !navState.details) ? "default" : "ghost",
-      onClick: handlePagesClick,
-      expandable: pages.length > 0,
-      expanded: isExpanded('nav:pages'),
-      onToggle: () => toggleExpanded('nav:pages'),
-      items: pages.map(p => ({
-        id: `nav:pages:${p.config.id}`,
-        title: p.config.name,
-        icon: PanelsTopLeft,
-        variant: (isPagesNavigation(navState) && navState.details?.pageSlug === p.config.slug) ? "default" as const : "ghost" as const,
-        onClick: () => navigate(routes.view.pages(p.config.slug)),
-      })),
-    },
-    {
-      id: "nav:automations",
-      title: t("sidebar.automations"),
-      label: String(automations.length),
-      icon: ListTodo,
-      variant: (isAutomationsNavigation(navState) && !automationFilter) ? "default" : "ghost",
-      onClick: handleAutomationsClick,
-      expandable: true,
-      expanded: isExpanded('nav:automations'),
-      onToggle: () => toggleExpanded('nav:automations'),
-      contextMenu: {
-        type: 'automations' as const,
-        onAddAutomation: openAddAutomation,
-      },
-      items: [
-        {
-          id: "nav:automations:scheduled",
-          title: t("sidebar.scheduled"),
-          label: String(automationTypeCounts.scheduled),
-          icon: Clock,
-          variant: (automationFilter?.kind === 'type' && automationFilter.automationType === 'scheduled') ? "default" : "ghost",
-          onClick: handleAutomationsScheduledClick,
-          contextMenu: { type: 'automations' as const, onAddAutomation: openAddAutomation },
-        },
-        {
-          id: "nav:automations:event",
-          title: t("sidebar.eventBased"),
-          label: String(automationTypeCounts.event),
-          icon: Radio,
-          variant: (automationFilter?.kind === 'type' && automationFilter.automationType === 'event') ? "default" : "ghost",
-          onClick: handleAutomationsEventClick,
-          contextMenu: { type: 'automations' as const, onAddAutomation: openAddAutomation },
-        },
-        {
-          id: "nav:automations:agentic",
-          title: t("sidebar.agentic"),
-          label: String(automationTypeCounts.agentic),
-          icon: Bot,
-          variant: (automationFilter?.kind === 'type' && automationFilter.automationType === 'agentic') ? "default" : "ghost",
-          onClick: handleAutomationsAgenticClick,
-          contextMenu: { type: 'automations' as const, onAddAutomation: openAddAutomation },
-        },
-      ],
-    },
-  ]
-  const sidebarFooterLinks: SidebarNavItem[] = [
-    // --- Settings ---
-    {
-      id: "nav:settings",
-      title: t("sidebar.settings"),
-      icon: Settings,
-      variant: isSettingsNavigation(navState) ? "default" : "ghost",
-      onClick: () => handleSettingsClick(),
-    },
-    // --- What's New ---
-    {
-      id: "nav:whats-new",
-      title: t("sidebar.whatsNew"),
-      icon: hasUnseenReleaseNotes ? (
-        <span className="relative">
-          <Cake className="h-3.5 w-3.5" />
-          <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-accent" />
-        </span>
-      ) : Cake,
-      variant: "ghost" as const,
-      onClick: handleWhatsNewClick,
-    },
-  ]
+  const capabilityActions = activeWorkspace && (
+    navSection === 'sources' ? (
+      <EditPopover
+        trigger={<HeaderIconButton icon={<Plus className="h-4 w-4" />} tooltip={t("sidebarMenu.addSource")} data-tutorial="add-source-button" />}
+        {...getEditConfig('add-source-mcp', activeWorkspace.rootPath)}
+      />
+    ) : navSection === 'skills' ? (
+      <EditPopover
+        trigger={<HeaderIconButton icon={<Plus className="h-4 w-4" />} tooltip={t("sidebarMenu.addSkill")} data-tutorial="add-skill-button" />}
+        {...getEditConfig('add-skill', activeWorkspace.rootPath)}
+      />
+    ) : navSection === 'automations' ? (
+      <>
+        <AutomationTypeToggle
+          value={automationFilter?.automationType ?? 'scheduled'}
+          onChange={(type) => navigate(type === 'scheduled' ? routes.view.automationsScheduled() : routes.view.automationsEvent())}
+        />
+        <EditPopover
+          trigger={<HeaderIconButton icon={<Plus className="h-4 w-4" />} tooltip={t("sidebarMenu.addAutomation")} />}
+          {...getEditConfig('automation-config', activeWorkspace.rootPath)}
+        />
+      </>
+    ) : null
+  )
 
   return (
     <AppShellProvider value={appShellContextValue}>
@@ -2390,7 +971,7 @@ function AppShellContent({
           isCompact={isAutoCompact}
         />
 
-      {/* === OUTER LAYOUT: Unified Panel Stack | Right Sidebar === */}
+      {/* === OUTER LAYOUT: session column | content panels === */}
       <div
         ref={shellRef}
         className="flex items-stretch relative"
@@ -2403,210 +984,73 @@ function AppShellContent({
         }}
       >
         <PanelStackContainer
-          sidebarSlot={
-            <SidebarPane
-              paneRef={sidebarRef}
-              width={sidebarWidth}
-              focused={sidebarFocused}
-              onKeyDown={handleSidebarKeyDown}
-              links={sidebarLinks}
-              footerLinks={sidebarFooterLinks}
-              getItemProps={getSidebarItemProps}
-              focusedItemId={focusedSidebarItemId}
-              onNewSession={(openInNewWindow) => handleNewChat(openInNewWindow)}
-              newSessionLabel={t("session.newSession")}
-              newSessionHotkey={newChatHotkey}
-            />
-          }
-          sidebarWidth={effectiveSidebarAndNavigatorHidden ? 0 : (isSidebarVisible ? sidebarWidth : 0)}
           navigatorSlot={
             <div
               style={{ width: isAutoCompact ? '100%' : sessionListWidth }}
-              className="h-full flex flex-col min-w-0 relative z-panel"
+              className="h-full flex flex-col min-w-0 relative z-panel @container/sessioncol"
+              data-session-column
             >
-            <PanelHeader
-              title={isSidebarVisible ? listTitle : undefined}
-              compensateForStoplight={!isSidebarVisible}
-              badge={automationFilter?.automationType === 'scheduled' ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-muted-foreground/50 cursor-default flex items-center titlebar-no-drag">
-                      <Info className="h-3 w-3" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-[220px]">
-                    Scheduling requires your machine to be running. It can be locked, but must be powered on.
-                  </TooltipContent>
-                </Tooltip>
-              ) : undefined}
-              actions={
-                <>
-                  {/* List ⇄ Board view switch (sessions mode, desktop widths only).
-                      In board view the navigator is collapsed, so the board hosts its own copy. */}
-                  {!isAutoCompact && isSessionsNavigation(navState) && (
-                    <BoardListToggle
-                      value="list"
-                      onChange={view => {
-                        if (view === 'board') navigate(routes.view.board())
-                      }}
-                    />
-                  )}
-                  {/* Filter dropdown - available in ALL chat views.
-                      Shows user-added filters (removable) and pinned filters (non-removable, derived from route).
-                      Pinned filters: state views pin a status, label views pin a label, flagged pins the flag. */}
-                  {isSessionsNavigation(navState) && (
-                    isAutoCompact ? (
-                      <CompactSessionListFilter
-                        listFilter={listFilter}
-                        setListFilter={setListFilter}
-                        labelFilter={labelFilter}
-                        setLabelFilter={setLabelFilter}
-                        pinnedFilters={pinnedFilters}
-                        effectiveSessionStatuses={effectiveSessionStatuses}
-                        displayLabelConfigs={displayLabelConfigs}
-                        labelConfigs={labelConfigs}
-                        chatGroupingMode={chatGroupingMode}
-                        setChatGroupingMode={setChatGroupingMode}
-                        isStateSubView={isStateSubView}
-                        onOpenSearch={() => setSearchActive(true)}
-                      />
-                    ) : (
-                    <SessionFilterMenu
-                      key={activeWorkspaceId ?? undefined}
-                      listFilter={listFilter}
-                      setListFilter={setListFilter}
-                      labelFilter={labelFilter}
-                      setLabelFilter={setLabelFilter}
-                      projectFilter={projectFilter}
-                      setProjectFilter={setProjectFilter}
-                      pinnedFilters={pinnedFilters}
-                      effectiveSessionStatuses={effectiveSessionStatuses}
-                      labelConfigs={labelConfigs}
-                      displayLabelConfigs={displayLabelConfigs}
-                      projectMenuOptions={projectMenuOptions}
-                      isStateSubView={isStateSubView}
-                      chatGroupingMode={chatGroupingMode}
-                      setChatGroupingMode={setChatGroupingMode}
-                      onOpenSearch={() => setSearchActive(true)}
-                    />
-                    )
-                  )}
-                  {/* Add Source button (only for sources mode) - uses filter-aware edit config */}
-                  {isSourcesNavigation(navState) && activeWorkspace && (
-                    <EditPopover
-                      trigger={
-                        <HeaderIconButton
-                          icon={<Plus className="h-4 w-4" />}
-                          tooltip={t("sidebarMenu.addSource")}
-                          data-tutorial="add-source-button"
-                        />
-                      }
-                      {...getEditConfig(
-                        sourceFilter?.kind === 'type' ? `add-source-${sourceFilter.sourceType}` as EditContextKey : 'add-source',
-                        activeWorkspace.rootPath
-                      )}
-                    />
-                  )}
-                  {/* Add Skill button (only for skills mode) */}
-                  {isSkillsNavigation(navState) && activeWorkspace && (
-                    <EditPopover
-                      trigger={
-                        <HeaderIconButton
-                          icon={<Plus className="h-4 w-4" />}
-                          tooltip={t("sidebarMenu.addSkill")}
-                          data-tutorial="add-skill-button"
-                        />
-                      }
-                      {...getEditConfig('add-skill', activeWorkspace.rootPath)}
-                    />
-                  )}
-                  {/* Add Automation button (only for automations mode) */}
-                  {isAutomationsNavigation(navState) && activeWorkspace && (
-                    <EditPopover
-                      trigger={
-                        <HeaderIconButton
-                          icon={<Plus className="h-4 w-4" />}
-                          tooltip={t("sidebarMenu.addAutomation")}
-                        />
-                      }
-                      {...getEditConfig('automation-config', activeWorkspace.rootPath)}
-                    />
-                  )}
-                  {/* Add Project button (only for projects mode) */}
-                  {isProjectsNavigation(navState) && activeWorkspace && (
-                    <HeaderIconButton
-                      icon={<Plus className="h-4 w-4" />}
-                      tooltip={t("sidebarMenu.addProject")}
-                      onClick={openAddProject}
-                    />
-                  )}
-                </>
-              }
-            />
-            {/* Content: SessionList, SourcesListPanel, or SettingsNavigator based on navigation state */}
-            {isSourcesNavigation(navState) && (
-              /* Sources List - filtered by type if sourceFilter is active */
-              <SourcesListPanel
-                sources={sources}
-                sourceFilter={sourceFilter}
-                workspaceRootPath={activeWorkspace?.rootPath}
-                onDeleteSource={handleDeleteSource}
-                onSourceClick={handleSourceSelect}
-                selectedSourceSlug={isSourcesNavigation(navState) && navState.details ? navState.details.sourceSlug : null}
-                localMcpEnabled={localMcpEnabled}
-              />
-            )}
-            {isSkillsNavigation(navState) && activeWorkspaceId && (
-              /* Skills List */
-              <SkillsListPanel
-                skills={skills}
-                workspaceId={activeWorkspaceId}
-                workspaceRootPath={activeWorkspace?.rootPath}
-                onSkillClick={handleSkillSelect}
-                onDeleteSkill={handleDeleteSkill}
-                selectedSkillSlug={isSkillsNavigation(navState) && navState.details?.type === 'skill' ? navState.details.skillSlug : null}
-              />
-            )}
-            {isProjectsNavigation(navState) && activeWorkspaceId && (
-              /* Projects List */
-              <ProjectsListPanel
-                projects={projects}
-                workspaceId={activeWorkspaceId}
-                onProjectClick={(slug) => navigate(routes.view.projects(slug))}
-                onAddProject={openAddProject}
-                onJumpToSessions={handleJumpToProjectSessions}
-                selectedProjectSlug={isProjectsNavigation(navState) ? navState.details?.projectSlug ?? null : null}
-              />
-            )}
-            {isAutomationsNavigation(navState) && (
-              /* Automations List - filtered by type if automationFilter is active */
-              <AutomationsListPanel
-                automations={automations}
-                automationFilter={automationFilter ? { kind: AUTOMATION_TYPE_TO_FILTER_KIND[automationFilter.automationType] ?? 'all' } : undefined}
-                onAutomationClick={handleAutomationSelect}
-                onTestAutomation={handleTestAutomation}
-                onToggleAutomation={handleToggleAutomation}
-                onDuplicateAutomation={handleDuplicateAutomation}
-                onDeleteAutomation={handleDeleteAutomation}
-                selectedAutomationId={isAutomationsNavigation(navState) && navState.details ? navState.details.automationId : null}
-                workspaceRootPath={activeWorkspace?.rootPath}
-              />
-            )}
-            {isSettingsNavigation(navState) && (
-              /* Settings Navigator */
-              <SettingsNavigator
-                selectedSubpage={navState.subpage}
-                onSelectSubpage={(subpage) => handleSettingsClick(subpage)}
-              />
-            )}
-            {isSessionsNavigation(navState) && (
-              /* Sessions List */
-              <>
-                {/* SessionList: Scrollable list of session cards */}
-                {/* Key on sidebarMode forces full remount when switching views, skipping animations */}
+              {navSection === 'sessions' ? (
+                <SessionNavHeader
+                  grouping={grouping}
+                  onGroupingChange={handleGroupingChange}
+                  showingArchived={showingArchived}
+                  archivedCount={archivedCount}
+                  onToggleArchived={handleToggleArchived}
+                  searchActive={searchActive}
+                  onSearch={() => setSearchActive(v => !v)}
+                  onNewSession={(openInNewWindow) => handleNewChat(openInNewWindow)}
+                  onNewProject={grouping === 'project' ? openAddProject : undefined}
+                  newSessionHotkey={newChatHotkey}
+                />
+              ) : (
+                <CapabilityNavHeader title={capabilityTitle} onBack={handleBackToSessions} actions={capabilityActions} />
+              )}
+
+              {navSection === 'sources' && (
+                <SourcesListPanel
+                  sources={sources}
+                  sourceFilter={null}
+                  workspaceRootPath={activeWorkspace?.rootPath}
+                  onDeleteSource={handleDeleteSource}
+                  onSourceClick={handleSourceSelect}
+                  selectedSourceSlug={isSourcesNavigation(navState) && navState.details ? navState.details.sourceSlug : null}
+                  localMcpEnabled={localMcpEnabled}
+                />
+              )}
+              {navSection === 'skills' && activeWorkspaceId && (
+                <SkillsListPanel
+                  skills={skills}
+                  workspaceId={activeWorkspaceId}
+                  workspaceRootPath={activeWorkspace?.rootPath}
+                  onSkillClick={handleSkillSelect}
+                  onDeleteSkill={handleDeleteSkill}
+                  selectedSkillSlug={isSkillsNavigation(navState) && navState.details?.type === 'skill' ? navState.details.skillSlug : null}
+                />
+              )}
+              {navSection === 'automations' && (
+                <AutomationsListPanel
+                  automations={automations}
+                  automationFilter={{ kind: AUTOMATION_TYPE_TO_FILTER_KIND[automationFilter?.automationType ?? 'scheduled'] ?? 'all' }}
+                  onAutomationClick={handleAutomationSelect}
+                  onTestAutomation={handleTestAutomation}
+                  onToggleAutomation={handleToggleAutomation}
+                  onDuplicateAutomation={handleDuplicateAutomation}
+                  onDeleteAutomation={handleDeleteAutomation}
+                  selectedAutomationId={isAutomationsNavigation(navState) && navState.details ? navState.details.automationId : null}
+                  workspaceRootPath={activeWorkspace?.rootPath}
+                />
+              )}
+              {navSection === 'settings' && isSettingsNavigation(navState) && (
+                <SettingsNavigator
+                  selectedSubpage={navState.subpage}
+                  onSelectSubpage={(subpage) => handleSettingsClick(subpage)}
+                />
+              )}
+              {navSection === 'sessions' && (
                 <SessionList
-                  key={sessionFilter?.kind}
-                  items={searchActive ? workspaceSessionMetas : filteredSessionMetas}
+                  key={showingArchived ? 'archived' : grouping}
+                  items={searchActive ? workspaceSessionMetas : (showingArchived ? workspaceSessionMetas.filter(s => s.isArchived) : activeSessionMetas)}
                   onDelete={handleDeleteSession}
                   onFlag={onFlagSession}
                   onUnflag={onUnflagSession}
@@ -2626,13 +1070,6 @@ function AppShellContent({
                       window.electronAPI.openSessionInNewWindow(activeWorkspaceId, selectedMeta.id)
                     }
                   }}
-                  onNavigateToView={(view) => {
-                    if (view === 'allSessions') {
-                      navigate(routes.view.allSessions())
-                    } else if (view === 'flagged') {
-                      navigate(routes.view.flagged())
-                    }
-                  }}
                   sessionOptions={sessionOptions}
                   searchActive={searchActive}
                   searchQuery={searchQuery}
@@ -2641,251 +1078,50 @@ function AppShellContent({
                     setSearchActive(false)
                     setSearchQuery('')
                   }}
-                  sessionStatuses={effectiveSessionStatuses}
-                  evaluateViews={evaluateViews}
+                  sessionStatuses={sessionStatuses}
                   labels={displayLabelConfigs}
                   onLabelsChange={handleSessionLabelsChange}
                   projects={projectMenuOptions}
                   onSetProjectId={handleSessionProjectChange}
-                  groupingMode={chatGroupingMode}
+                  groupingMode={showingArchived ? 'date' : grouping}
+                  onNewSessionInProject={(projectId) => handleNewChat(false, projectId)}
+                  onOpenProject={handleOpenProject}
                   workspaceId={activeWorkspaceId ?? undefined}
-                  statusFilter={listFilter}
-                  labelFilterMap={labelFilter}
                   focusedSessionId={panelCount === 0 ? null : panelCount > 1 ? focusedSessionId : undefined}
                   onNavigateToSession={panelCount > 1 ? navigateToSessionInPanel : undefined}
                   hasPendingPrompt={hasPendingPrompt}
                   activeChatMatchInfo={chatMatchInfo}
                 />
-              </>
-            )}
-            {/* Mobile/compact-only FAB for starting a new chat — only on the
-                session list itself, not when a chat is open (it would overlap
-                the chat input). */}
-            {isAutoCompact && isSessionsNavigation(navState) && !navState.details && (
-              <FabNewChat onClick={() => handleNewChat()} />
-            )}
+              )}
+
+              <SessionNavFooter active={navSection} onSelect={handleNavSectionSelect} />
+
+              {/* Mobile/compact-only FAB for starting a new chat — only on the session list */}
+              {isAutoCompact && navSection === 'sessions' && !(isSessionsNavigation(navState) && navState.details) && (
+                <FabNewChat onClick={() => handleNewChat()} />
+              )}
             </div>
           }
-          navigatorWidth={isAutoCompact ? sessionListWidth : (effectiveSidebarAndNavigatorHidden || isBoardView || isPagesView ? 0 : sessionListWidth)}
-          isSidebarAndNavigatorHidden={effectiveSidebarAndNavigatorHidden}
+          navigatorWidth={isAutoCompact ? sessionListWidth : (effectiveColumnHidden ? 0 : sessionListWidth)}
+          isSidebarAndNavigatorHidden={effectiveColumnHidden}
           isRightSidebarVisible={false}
           isCompact={isAutoCompact}
-          isResizing={!!isResizing}
+          isResizing={isResizing}
           animateLayout={animateShellLayout}
         />
 
-        {/* Seam handles (absolute, hidden in focused mode) — instant, never animated */}
-        {!effectiveSidebarAndNavigatorHidden && (
-          <ShellResizeHandle
-            handleRef={resizeHandleRef}
-            left={isSidebarVisible ? sidebarWidth + (PANEL_GAP / 2) - PANEL_SASH_HALF_HIT_WIDTH : -PANEL_GAP}
-            hoverY={sidebarHandleY}
-            onHoverYChange={setSidebarHandleY}
-            keepHoverOnLeave={!!isResizing}
-            onDragStart={() => setIsResizing('sidebar')}
-          />
-        )}
-        {/* The list and the content share one card, so the list seam is the card's inner hairline
-            (hidden in board view and pages, where the list is collapsed) */}
-        {!effectiveSidebarAndNavigatorHidden && !isBoardView && !isPagesView && (
+        {/* The list and the content share one card, so the column seam is the card's inner hairline */}
+        {!effectiveColumnHidden && !isAutoCompact && (
           <ShellResizeHandle
             handleRef={sessionListHandleRef}
-            left={(isSidebarVisible ? sidebarWidth + PANEL_GAP : PANEL_EDGE_INSET) + sessionListWidth - PANEL_SASH_HALF_HIT_WIDTH}
+            left={PANEL_EDGE_INSET + sessionListWidth - PANEL_SASH_HALF_HIT_WIDTH}
             hoverY={sessionListHandleY}
             onHoverYChange={setSessionListHandleY}
-            keepHoverOnLeave={isResizing === 'session-list'}
-            onDragStart={() => setIsResizing('session-list')}
+            keepHoverOnLeave={isResizing}
+            onDragStart={() => setIsResizing(true)}
           />
         )}
-
       </div>
-
-      {/* ============================================================================
-       * CONTEXT MENU TRIGGERED EDIT POPOVERS
-       * ============================================================================
-       * These EditPopovers are opened programmatically from sidebar context menus.
-       * They use controlled state (editPopoverOpen) and invisible anchors for positioning.
-       * The anchor Y position is captured from the right-clicked item (editPopoverAnchorY ref)
-       * so the popover appears near the triggering item rather than at a fixed location.
-       * modal={true} prevents auto-close when focus shifts after context menu closes.
-       */}
-      {activeWorkspace && (
-        <>
-          {/* Configure Statuses EditPopover - anchored near sidebar */}
-          <EditPopover
-            open={editPopoverOpen === 'statuses'}
-            onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? 'statuses' : null)}
-            modal={true}
-            trigger={
-              <div
-                className="fixed w-0 h-0 pointer-events-none"
-                style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                aria-hidden="true"
-              />
-            }
-            side="bottom"
-            align="start"
-            secondaryAction={{
-              label: 'Edit File',
-              filePath: `${activeWorkspace.rootPath}/statuses/config.json`,
-            }}
-            {...getEditConfig('edit-statuses', activeWorkspace.rootPath)}
-          />
-          {/* Configure Labels EditPopover - anchored near sidebar */}
-          <EditPopover
-            open={editPopoverOpen === 'labels'}
-            onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? 'labels' : null)}
-            modal={true}
-            trigger={
-              <div
-                className="fixed w-0 h-0 pointer-events-none"
-                style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                aria-hidden="true"
-              />
-            }
-            side="bottom"
-            align="start"
-            secondaryAction={{
-              label: 'Edit File',
-              filePath: `${activeWorkspace.rootPath}/labels/config.json`,
-            }}
-            {...(() => {
-              // Spread base config, override context to include which label was right-clicked
-              const config = getEditConfig('edit-labels', activeWorkspace.rootPath)
-              const targetLabel = editLabelTargetId.current
-                ? findLabelById(labelConfigs, editLabelTargetId.current)
-                : undefined
-              if (!targetLabel) return config
-              return {
-                ...config,
-                context: {
-                  ...config.context,
-                  context: (config.context.context || '') +
-                    ` The user right-clicked on the label "${targetLabel.name}" (id: "${targetLabel.id}"). ` +
-                    'If they refer to "this label" or "this", they mean this specific label.',
-                },
-              }
-            })()}
-          />
-          {/* Edit Views EditPopover - anchored near sidebar */}
-          <EditPopover
-            open={editPopoverOpen === 'views'}
-            onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? 'views' : null)}
-            modal={true}
-            trigger={
-              <div
-                className="fixed w-0 h-0 pointer-events-none"
-                style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                aria-hidden="true"
-              />
-            }
-            side="bottom"
-            align="start"
-            secondaryAction={{
-              label: 'Edit File',
-              filePath: `${activeWorkspace.rootPath}/views.json`,
-            }}
-            {...getEditConfig('edit-views', activeWorkspace.rootPath)}
-          />
-          {/* Add Source EditPopovers - one for each variant (generic + filter-specific)
-           * editPopoverOpen can be: 'add-source', 'add-source-api', 'add-source-mcp', 'add-source-local'
-           * Each variant uses its corresponding EditContextKey for filter-aware agent context */}
-          {(['add-source', 'add-source-api', 'add-source-mcp', 'add-source-local'] as const).map((variant) => (
-            <EditPopover
-              key={variant}
-              open={editPopoverOpen === variant}
-              onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? variant : null)}
-              modal={true}
-              trigger={
-                <div
-                  className="fixed w-0 h-0 pointer-events-none"
-                  style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                  aria-hidden="true"
-                />
-              }
-              side="bottom"
-              align="start"
-              {...getEditConfig(variant, activeWorkspace.rootPath)}
-            />
-          ))}
-          {/* Add Skill EditPopover */}
-          <EditPopover
-            open={editPopoverOpen === 'add-skill'}
-            onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? 'add-skill' : null)}
-            modal={true}
-            trigger={
-              <div
-                className="fixed w-0 h-0 pointer-events-none"
-                style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                aria-hidden="true"
-              />
-            }
-            side="bottom"
-            align="start"
-            {...getEditConfig('add-skill', activeWorkspace.rootPath)}
-          />
-          {/* Add Automation EditPopover - triggered from "Add Automation" context menu in automations */}
-          <EditPopover
-            open={editPopoverOpen === 'automation-config'}
-            onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? 'automation-config' : null)}
-            modal={true}
-            trigger={
-              <div
-                className="fixed w-0 h-0 pointer-events-none"
-                style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                aria-hidden="true"
-              />
-            }
-            side="bottom"
-            align="start"
-            {...getEditConfig('automation-config', activeWorkspace.rootPath)}
-          />
-          {/* Add Label EditPopover - triggered from "Add New Label" context menu on labels */}
-          <EditPopover
-            open={editPopoverOpen === 'add-label'}
-            onOpenChange={(isOpen) => setEditPopoverOpen(isOpen ? 'add-label' : null)}
-            modal={true}
-            trigger={
-              <div
-                className="fixed w-0 h-0 pointer-events-none"
-                style={{ left: sidebarWidth + 20, top: editPopoverAnchorY.current }}
-                aria-hidden="true"
-              />
-            }
-            side="bottom"
-            align="start"
-            secondaryAction={{
-              label: 'Edit File',
-              filePath: `${activeWorkspace.rootPath}/labels/config.json`,
-            }}
-            {...(() => {
-              // Spread base config, override context to include which label was right-clicked
-              const config = getEditConfig('add-label', activeWorkspace.rootPath)
-              const targetLabel = editLabelTargetId.current
-                ? findLabelById(labelConfigs, editLabelTargetId.current)
-                : undefined
-              if (!targetLabel) return config
-              return {
-                ...config,
-                context: {
-                  ...config.context,
-                  context: (config.context.context || '') +
-                    ` The user right-clicked on the label "${targetLabel.name}" (id: "${targetLabel.id}"). ` +
-                    'The new label should be added as a sibling after this label, or as a child if the user specifies.',
-                },
-              }
-            })()}
-          />
-        </>
-      )}
-
-      {/* What's New overlay */}
-      <DocumentFormattedMarkdownOverlay
-        isOpen={showWhatsNew}
-        onClose={() => setShowWhatsNew(false)}
-        content={releaseNotesContent}
-        onOpenUrl={(url) => window.electronAPI.openUrl(url)}
-      />
 
       {/* Delete automation confirmation dialog */}
       <Dialog open={!!automationPendingDelete} onOpenChange={(open) => { if (!open) setAutomationPendingDelete(null) }}>
@@ -2931,5 +1167,44 @@ function AppShellContent({
       {/* Asks to update rtk when Token Optimization is on but the installed rtk corrupts output */}
       <RtkUpdatePrompt workspaceId={activeWorkspaceId} />
     </AppShellProvider>
+  )
+}
+
+/** Scheduled ⇄ event-triggered automations (agent events count as events). */
+function AutomationTypeToggle({
+  value,
+  onChange,
+}: {
+  value: 'scheduled' | 'event'
+  onChange: (value: 'scheduled' | 'event') => void
+}) {
+  const { t } = useTranslation()
+  const options: Array<{ id: 'scheduled' | 'event'; label: string }> = [
+    { id: 'scheduled', label: t('sidebar.scheduled') },
+    { id: 'event', label: t('sidebar.eventBased') },
+  ]
+  return (
+    <div role="radiogroup" className="titlebar-no-drag inline-flex items-center gap-0.5 rounded-md bg-fill-hover p-0.5">
+      {options.map(option => (
+        <Tooltip key={option.id}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={value === option.id}
+              onClick={() => onChange(option.id)}
+              className={cn(
+                'h-control-sm rounded-sm px-2 text-label-sm whitespace-nowrap',
+                'transition-[background-color,color,box-shadow] duration-micro ease-out-subtle hover:duration-instant',
+                value === option.id ? 'bg-floating text-foreground shadow-elev-1' : 'text-secondary hover:text-foreground'
+              )}
+            >
+              {option.label}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{option.label}</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
   )
 }

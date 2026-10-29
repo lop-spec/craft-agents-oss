@@ -2,22 +2,22 @@
  * PanelStackContainer
  *
  * Horizontal layout container for ALL panels:
- * Sidebar → Navigator → Content Panel(s) with resize sashes.
+ * Session column (navigator) → Content Panel(s) with resize sashes.
  *
  * Content panels use CSS flex-grow with their proportions as weights:
  * - Each panel gets `flex: <proportion> 1 0px` with `min-width: PANEL_MIN_WIDTH`
  * - Flex distributes available space proportionally — panels fill the viewport
  * - When panels hit min-width, overflow-x: auto kicks in naturally
  *
- * Sidebar and Navigator are NOT part of the proportional layout —
- * they have their own fixed/user-resizable widths managed by AppShell.
+ * The navigator is NOT part of the proportional layout —
+ * it has its own user-resizable width managed by AppShell.
  * They just reduce the available width for content panels and scroll with everything else.
  *
- * Materials (design spec §7.1): the sidebar sits flush on the navigator canvas; the navigator (list)
+ * Materials (design spec §7.1): the navigator (list)
  * and the first content panel share ONE paper card — they are joined edge to edge and the list's
  * hairline is the divider. Additional panels get their own card.
  *
- * Motion (spec §6.3): collapsing/expanding the sidebar or the list commits the layout ONCE and FLIPs
+ * Motion (spec §6.3): collapsing/expanding the list commits the layout ONCE and FLIPs
  * the cards from where they were (transform only — no width/margin/padding animation, so no layout
  * per frame). The card material scales while the content translates, so text never stretches.
  * Keyboard toggles (⌘B, ⌘.) are instant, as are drags and the compact layout.
@@ -29,10 +29,9 @@
  * feel rather than a CSS reflow.
  */
 
-import { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react'
-import { flushSync } from 'react-dom'
+import { useRef, useEffect, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
-import { FlipOnChange, cancelFlip, cancelSlideOut, playSlideX, SPRING, type FlipTarget } from '@craft-agent/ui/motion'
+import { FlipOnChange, type FlipTarget } from '@craft-agent/ui/motion'
 import { cn } from '@/lib/utils'
 import { useToastAnchor } from '@/components/ui/sonner'
 import { panelStackAtom, focusedPanelIdAtom, focusedPanelRouteAtom } from '@/atoms/panel-stack'
@@ -53,8 +52,6 @@ import {
 const COMPACT_PANEL_TOP_GAP = 8
 
 interface PanelStackContainerProps {
-  sidebarSlot: React.ReactNode
-  sidebarWidth: number
   navigatorSlot: React.ReactNode
   navigatorWidth: number
   isSidebarAndNavigatorHidden: boolean
@@ -63,15 +60,13 @@ interface PanelStackContainerProps {
   isCompact?: boolean
   isResizing?: boolean
   /**
-   * Whether showing/hiding the sidebar or the list animates. AppShell passes false for keyboard
+   * Whether showing/hiding the list animates. AppShell passes false for keyboard
    * toggles (⌘B, ⌘.): keyboard and high-frequency actions are instant (spec §6.1).
    */
   animateLayout?: boolean
 }
 
 export function PanelStackContainer({
-  sidebarSlot,
-  sidebarWidth,
   navigatorSlot,
   navigatorWidth,
   isSidebarAndNavigatorHidden,
@@ -98,21 +93,19 @@ export function PanelStackContainer({
     : contentPanels
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const sidebarElRef = useRef<HTMLDivElement>(null)
   const navigatorElRef = useRef<HTMLDivElement>(null)
   const panelEls = useRef(new Map<string, PanelSlotElements>())
   const prevCountRef = useRef(contentPanels.length)
 
-  const hasSidebar = sidebarWidth > 0
   const hasNavigator = navigatorWidth > 0
   const isMultiPanel = visiblePanels.length > 1
-  const isLeftEdge = !hasSidebar && !hasNavigator
+  const isLeftEdge = !hasNavigator
   // The list and the first content panel read as one paper card.
   const isJoined = hasNavigator && visiblePanels.length > 0
 
-  // Toasts sit inside the content card's first pane, bottom-left — never over the sidebar (spec D10).
+  // Toasts sit inside the content card's first pane, bottom-left (spec D10).
   useToastAnchor(
-    isCompact ? null : hasSidebar ? sidebarWidth + PANEL_GAP : PANEL_EDGE_INSET,
+    isCompact ? null : PANEL_EDGE_INSET,
     hasNavigator ? navigatorWidth : null,
   )
 
@@ -129,12 +122,6 @@ export function PanelStackContainer({
     }
     prevCountRef.current = contentPanels.length
   }, [contentPanels.length, isCompact])
-
-  // --- Sidebar exit: the sidebar leaves the flow at once but stays painted, sliding out under the
-  // cards that FLIP over it (mockup `toggleSidebar`). It's an absolute overlay while it exits.
-  const [sidebarExiting, setSidebarExiting] = useState(false)
-  const pendingExitRef = useRef(false)
-  const showSidebarOverlay = sidebarExiting && !hasSidebar
 
   // While cards are translated past the stack's right edge the scroller must not grow a scrollbar:
   // hold overflow-x hidden (scroll position is kept) until the last running animation settles.
@@ -165,51 +152,9 @@ export function PanelStackContainer({
     return targets
   }, [])
 
-  const handleFlipPlayed = useCallback((animations: Animation[], change: { from: unknown; to: unknown }) => {
+  const handleFlipPlayed = useCallback((animations: Animation[]) => {
     holdOverflow(animations)
-    const [hadSidebar] = String(change.from).split(':')
-    const [nowSidebar] = String(change.to).split(':')
-    const sidebarEl = sidebarElRef.current
-    if (!sidebarEl || hadSidebar === nowSidebar) return
-    cancelFlip([sidebarEl])
-    if (nowSidebar === '1') {
-      // Opening: the sidebar slides in from the left while the cards glide right.
-      const slide = playSlideX(sidebarEl, -(sidebarWidth + PANEL_GAP), 0, SPRING.panel)
-      if (slide) holdOverflow([slide])
-    } else if (animations.length > 0) {
-      pendingExitRef.current = true
-      setSidebarExiting(true)
-    }
-  }, [holdOverflow, sidebarWidth])
-
-  // Slide the exiting overlay out, then drop it.
-  useLayoutEffect(() => {
-    if (!showSidebarOverlay || !pendingExitRef.current) return
-    pendingExitRef.current = false
-    const el = sidebarElRef.current
-    const slide = el ? playSlideX(el, 0, -(sidebarWidth + PANEL_GAP), SPRING.panel) : null
-    if (!slide) {
-      setSidebarExiting(false)
-      return
-    }
-    holdOverflow([slide])
-    // The exit slide holds its end state; hide the overlay in the same frame the hold is released.
-    slide.finished.then(
-      () => {
-        flushSync(() => setSidebarExiting(false))
-        slide.cancel()
-      },
-      () => setSidebarExiting(false),
-    )
-  }, [showSidebarOverlay, sidebarWidth, holdOverflow])
-
-  // Shown again mid-exit (e.g. ⌘B twice): drop the exit slide so the sidebar shows in place.
-  useLayoutEffect(() => {
-    if (hasSidebar && sidebarExiting) {
-      cancelSlideOut([sidebarElRef.current])
-      setSidebarExiting(false)
-    }
-  }, [hasSidebar, sidebarExiting])
+  }, [holdOverflow])
 
   const registerPanel = useCallback((id: string, els: PanelSlotElements | null) => {
     if (els) panelEls.current.set(id, els)
@@ -219,7 +164,7 @@ export function PanelStackContainer({
   // === COMPACT BRANCH ===
   // Single-panel layout with iOS-style slide between navigator and detail.
   // Both stay in the DOM; CompactPanelTransition transforms whichever should be
-  // off-screen. Sidebar is hidden by AppShell in compact mode (sidebarWidth = 0).
+  // off-screen.
   if (isCompact) {
     const focusedEntry = visiblePanels[0]
     return (
@@ -278,7 +223,7 @@ export function PanelStackContainer({
 
   // === DESKTOP BRANCH ===
   const flipEnabled = animateLayout && !isResizing
-  const layoutKey = `${hasSidebar ? 1 : 0}:${hasNavigator ? 1 : 0}`
+  const layoutKey = hasNavigator ? '1' : '0'
 
   return (
     <div
@@ -299,26 +244,8 @@ export function PanelStackContainer({
       <FlipOnChange value={layoutKey} enabled={flipEnabled} getTargets={getFlipTargets} axis="x" onPlay={handleFlipPlayed}>
         <div
           className="flex h-full relative"
-          style={{ gap: PANEL_GAP, flexGrow: 1, minWidth: 0, paddingLeft: hasSidebar ? 0 : PANEL_EDGE_INSET }}
+          style={{ gap: PANEL_GAP, flexGrow: 1, minWidth: 0, paddingLeft: PANEL_EDGE_INSET }}
         >
-          {/* === SIDEBAR SLOT === (flush on the navigator canvas — no card) */}
-          <div
-            ref={sidebarElRef}
-            data-panel-role="sidebar"
-            className="h-full shrink-0"
-            style={
-              hasSidebar
-                ? { width: sidebarWidth, position: 'relative' }
-                : showSidebarOverlay
-                  ? { position: 'absolute', left: 0, top: 0, bottom: 0, width: sidebarWidth, pointerEvents: 'none' }
-                  : { width: 0, marginRight: -PANEL_GAP, overflowX: 'clip', opacity: 0 }
-            }
-          >
-            <div className="h-full" style={{ width: sidebarWidth }}>
-              {sidebarSlot}
-            </div>
-          </div>
-
           {/* === NAVIGATOR SLOT === (left half of the shared paper card) */}
           <div
             ref={navigatorElRef}
@@ -332,7 +259,7 @@ export function PanelStackContainer({
               marginRight: hasNavigator ? 0 : -PANEL_GAP,
               opacity: hasNavigator ? 1 : 0,
               borderTopLeftRadius: RADIUS_INNER,
-              borderBottomLeftRadius: !hasSidebar ? RADIUS_EDGE : RADIUS_INNER,
+              borderBottomLeftRadius: RADIUS_EDGE,
               borderTopRightRadius: isJoined ? 0 : RADIUS_INNER,
               borderBottomRightRadius: isJoined ? 0 : RADIUS_INNER,
             }}

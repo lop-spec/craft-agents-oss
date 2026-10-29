@@ -79,7 +79,7 @@ export type NavigatorType = 'sessions' | 'sources' | 'settings'
 /**
  * Session filter kinds that map to sidebar routes
  */
-export type SessionFilterKind = 'allSessions' | 'flagged' | 'state'
+export type SessionFilterKind = 'allSessions' | 'archived'
 
 // =============================================================================
 // Details Page Metadata
@@ -128,20 +128,7 @@ export const NavigationRegistry = {
       const filter = ctx.sessionFilter
       if (!filter) return ctx.sessions[0]?.id ?? null
 
-      let filtered = ctx.sessions
-      switch (filter.kind) {
-        case 'flagged':
-          filtered = ctx.sessions.filter(s => s.isFlagged)
-          break
-        case 'state':
-          filtered = ctx.sessions.filter(s => s.stateId === filter.stateId)
-          break
-        case 'allSessions':
-        default:
-          // allSessions shows all sessions
-          break
-      }
-      return filtered[0]?.id ?? null
+      return ctx.sessions[0]?.id ?? null
     },
   },
 

@@ -33,7 +33,6 @@ import {
   isSkillsNavigation,
   isAutomationsNavigation,
   isProjectsNavigation,
-  isPagesNavigation,
 } from '@/contexts/NavigationContext'
 import { useSessionSelection, useIsMultiSelectActive, useSelectedIds, useSelectionCount } from '@/hooks/useSession'
 import { sourceSelection, skillSelection, automationSelection } from '@/hooks/useEntitySelection'
@@ -44,9 +43,6 @@ import SkillInfoPage from '@/pages/SkillInfoPage'
 import { getSettingsPageComponent } from '@/pages/settings/settings-pages'
 import { AutomationInfoPage } from '../automations/AutomationInfoPage'
 import ProjectInfoPage from '@/pages/ProjectInfoPage'
-import { KanbanBoardContainer } from './kanban/KanbanBoardContainer'
-import { PagesHome } from '../pages/PagesHome'
-import { PageView } from '../pages/PageView'
 import type { ExecutionEntry } from '../automations/types'
 import { automationsAtom } from '@/atoms/automations'
 import { SendResourceToWorkspaceDialog, type SendResourceType } from './SendResourceToWorkspaceDialog'
@@ -357,19 +353,6 @@ export function MainContentPanel({
     )
   }
 
-  // Pages navigator - full-width library grid, or one page's embedded render
-  if (isPagesNavigation(navState)) {
-    return wrapWithStoplight(
-      <Panel variant="grow" className={className}>
-        {navState.details ? (
-          <PageView key={navState.details.pageSlug} pageSlug={navState.details.pageSlug} />
-        ) : (
-          <PagesHome />
-        )}
-      </Panel>
-    )
-  }
-
   // Projects navigator - show project detail page or empty state
   if (isProjectsNavigation(navState)) {
     const projectDetails = navState.details
@@ -389,15 +372,6 @@ export function MainContentPanel({
 
   // Chats navigator - show chat, multi-select panel, or empty state
   if (isSessionsNavigation(navState)) {
-    // Board view: full-width Kanban over all sessions (placement independent of status)
-    if (navState.viewMode === 'board') {
-      return wrapWithStoplight(
-        <Panel variant="grow" className={className}>
-          <KanbanBoardContainer />
-        </Panel>
-      )
-    }
-
     // Multi-select mode: show batch actions panel
     if (isMultiSelectActive) {
       return wrapWithStoplight(

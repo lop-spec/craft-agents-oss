@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertCircle, Check, ChevronDown, Image as ImageIcon } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Cpu, Image as ImageIcon } from 'lucide-react'
 import { Spinner, Tooltip, TooltipContent, TooltipTrigger } from '@craft-agent/ui'
 import * as storage from '@/lib/local-storage'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,6 @@ import {
 import { ConnectionIcon } from '@/components/icons/ConnectionIcon'
 import { ANTHROPIC_MODELS, getModelShortName, type ModelDefinition } from '@config/models'
 import { isCompatProvider, modelSupportsImages, type LlmConnectionWithStatus } from '@config/llm-connections'
-import { THINKING_LEVELS, getThinkingLevelNameKey, type ThinkingLevel } from '@craft-agent/shared/agent/thinking-levels'
 import { stripPiPrefixForDisplay } from './model-picker-helpers'
 import type { PickerMode } from './picker-mode'
 import type { ToggleModelVision } from './useModelVisionToggle'
@@ -48,9 +47,6 @@ interface ComposerModelMenuProps {
   onModelChange: (model: string, connection?: string) => void
   onConnectionChange?: (connectionSlug: string) => void
   onToggleVision: ToggleModelVision
-  thinkingLevel: ThinkingLevel
-  thinkingDisabled: boolean
-  onThinkingLevelChange?: (level: ThinkingLevel) => void
   contextDisplay: ReturnType<typeof getContextDisplay>
   contextLabels: ReturnType<typeof getContextDisplayLabels>
   isCompacting?: boolean
@@ -90,9 +86,8 @@ function VisionToggle({ visionOn, onToggle }: { visionOn: boolean; onToggle: () 
 }
 
 /**
- * Desktop model picker (mockup "Opus 5.5 ⌄" chip). Moved out of FreeFormInput unchanged in
- * behavior: the four picker modes, vision toggles, thinking level and context footer are the
- * same; only the trigger and menu rows use the toolbar-chip and menu materials.
+ * Desktop model picker (pi-web "chip · model ⌄"). The four picker modes, vision toggles and the
+ * context footer; the reasoning level is its own chip (ComposerThinkingChip).
  */
 export function ComposerModelMenu({
   open,
@@ -112,15 +107,12 @@ export function ComposerModelMenu({
   onModelChange,
   onConnectionChange,
   onToggleVision,
-  thinkingLevel,
-  thinkingDisabled,
-  onThinkingLevelChange,
   contextDisplay,
   contextLabels,
   isCompacting,
 }: ComposerModelMenuProps) {
   const { t } = useTranslation()
-  const availableThinkingLevels = THINKING_LEVELS
+  const showConnectionIcon = !!effectiveConnectionDetails && llmConnections.length > 1 && storage.get(storage.KEYS.showConnectionIcons, true)
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
@@ -145,7 +137,7 @@ export function ComposerModelMenu({
                 </>
               ) : (
                 <>
-                  {effectiveConnectionDetails && llmConnections.length > 1 && storage.get(storage.KEYS.showConnectionIcons, true) && <ConnectionIcon connection={effectiveConnectionDetails} size={14} showTooltip />}
+                  {showConnectionIcon ? <ConnectionIcon connection={effectiveConnectionDetails!} size={14} showTooltip /> : <Cpu className="size-3.5 shrink-0" />}
                   <span className="min-w-0 truncate">{currentModelDisplayName}</span>
                   {pickerMode !== 'locked-single' && <ChevronDown className="size-3.5 shrink-0" />}
                 </>
@@ -328,43 +320,6 @@ export function ComposerModelMenu({
                 </StyledDropdownMenuItem>
               )
             })}
-          </>
-        )}
-
-        {/* Thinking level selector — only shown when thinking levels are available
-            (Claude supports extended thinking, OpenAI backends may not) */}
-        {availableThinkingLevels.length > 0 && (
-          <>
-            <StyledDropdownMenuSeparator className="my-1" />
-
-            <DropdownMenuSub>
-              <StyledDropdownMenuSubTrigger disabled={thinkingDisabled} className={cn('flex items-center justify-between py-1.5', thinkingDisabled && 'cursor-not-allowed')}>
-                <div className="flex-1 text-left">
-                  <div className={cn(ITEM_NAME, thinkingDisabled && 'text-disabled')}>{t(getThinkingLevelNameKey(thinkingLevel))}</div>
-                  <div className={cn(ITEM_DESCRIPTION, thinkingDisabled && 'text-disabled')}>{thinkingDisabled ? t('thinking.notSupported') : t('thinking.extendedDesc')}</div>
-                </div>
-              </StyledDropdownMenuSubTrigger>
-              <StyledDropdownMenuSubContent className="min-w-[220px]">
-                {availableThinkingLevels.map(({ id, nameKey, descriptionKey }) => {
-                  const isSelected = thinkingLevel === id
-                  return (
-                    <StyledDropdownMenuItem
-                      key={id}
-                      onSelect={() => onThinkingLevelChange?.(id)}
-                      className="flex cursor-pointer items-center justify-between py-1.5"
-                    >
-                      <div className="text-left">
-                        <div className={ITEM_NAME}>{t(nameKey)}</div>
-                        <div className={ITEM_DESCRIPTION}>{t(descriptionKey)}</div>
-                      </div>
-                      {isSelected && (
-                        <Check className="ml-3 size-4 shrink-0 text-secondary" />
-                      )}
-                    </StyledDropdownMenuItem>
-                  )
-                })}
-              </StyledDropdownMenuSubContent>
-            </DropdownMenuSub>
           </>
         )}
 

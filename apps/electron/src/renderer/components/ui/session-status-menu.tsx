@@ -20,6 +20,8 @@ export { type SessionStatusId, type SessionStatus, getStateIcon, getStateColor }
 // ============================================================================
 
 const MENU_CONTAINER_STYLE = 'popover-styled min-w-[180px] overflow-hidden'
+/** Hover picker: no filter field, as narrow as its labels */
+const MENU_CONTAINER_STYLE_COMPACT = 'popover-styled min-w-[112px] overflow-hidden'
 const MENU_LIST_STYLE = 'max-h-[240px] overflow-y-auto p-1 [&_[cmdk-list-sizer]]:space-y-px'
 const MENU_ITEM_STYLE = 'flex min-h-row-menu cursor-pointer select-none items-center gap-2 rounded-md px-2 pr-3 text-label'
 const MENU_SEPARATOR_STYLE = 'bg-separator -mx-1 my-1 h-px'
@@ -66,6 +68,11 @@ export interface SessionStatusMenuProps {
   onClear?: () => void
   /** Label for the clear item. Defaults to "Clear". */
   clearLabel?: string
+  /**
+   * Filter field on top (focused on open). Off for the hover picker: it opens under the pointer
+   * and must not take focus from the composer.
+   */
+  filterable?: boolean
   className?: string
 }
 
@@ -78,6 +85,7 @@ export function SessionStatusMenu({
   onUnarchive,
   onClear,
   clearLabel,
+  filterable = true,
   className,
 }: SessionStatusMenuProps) {
   const { t } = useTranslation()
@@ -86,11 +94,12 @@ export function SessionStatusMenu({
 
   // Focus input when menu opens
   React.useEffect(() => {
+    if (!filterable) return
     const timer = setTimeout(() => {
       inputRef.current?.focus()
     }, 0)
     return () => clearTimeout(timer)
-  }, [])
+  }, [filterable])
 
   // Find default value - prefer active state, otherwise first item
   const defaultValue = activeState || states[0]?.id
@@ -98,18 +107,20 @@ export function SessionStatusMenu({
   return (
     <CommandPrimitive
       label={t('status.filterStatuses')}
-      className={cn(MENU_CONTAINER_STYLE, className)}
+      className={cn(filterable ? MENU_CONTAINER_STYLE : MENU_CONTAINER_STYLE_COMPACT, className)}
       defaultValue={defaultValue}
     >
-      <div className="border-b border-subtle px-3 py-2">
-        <CommandPrimitive.Input
-          ref={inputRef}
-          value={filter}
-          onValueChange={setFilter}
-          placeholder={t("status.filterStatuses")}
-          className="w-full bg-transparent text-label outline-none placeholder:text-tertiary"
-        />
-      </div>
+      {filterable && (
+        <div className="border-b border-subtle px-3 py-2">
+          <CommandPrimitive.Input
+            ref={inputRef}
+            value={filter}
+            onValueChange={setFilter}
+            placeholder={t("status.filterStatuses")}
+            className="w-full bg-transparent text-label outline-none placeholder:text-tertiary"
+          />
+        </div>
+      )}
       <CommandPrimitive.List className={MENU_LIST_STYLE}>
         <CommandPrimitive.Empty className="py-3 text-center text-label text-tertiary">
           {t('chat.noResults')}

@@ -172,7 +172,6 @@ export function ChatInputZone({
           {...inputProps}
           onConsoleSnippetPaste={onRunCommand ? handleSnippetPaste : undefined}
           compactMode={compactMode}
-          showPermissionModeChip={shouldShowOptionBadges}
           permissionMode={permissionMode}
           onPermissionModeChange={onPermissionModeChange}
           labels={labels}

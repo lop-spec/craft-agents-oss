@@ -18,7 +18,6 @@ import { PanelHeaderCenterButton } from '@/components/ui/PanelHeaderCenterButton
 import { RenameDialog } from '@/components/ui/rename-dialog'
 import { DropdownMenu, DropdownMenuTrigger, StyledDropdownMenuContent } from '@/components/ui/styled-dropdown'
 import { useAppShellContext } from '@/context/AppShellContext'
-import { kanbanEditorTargetAtom } from '@/atoms/kanban'
 import type { SessionMeta } from '@/atoms/sessions'
 import { navigate, routes } from '@/lib/navigate'
 import { cn } from '@/lib/utils'
@@ -28,6 +27,7 @@ import { SessionMenu } from '../SessionMenu'
 import { CompactSessionMenu } from '../CompactSessionMenu'
 import { SessionInfoPopover } from '../SessionInfoPopover'
 import { deriveSelectionFlags } from '../input/use-working-directory-state'
+import { ComposerModeChip } from '../input/ComposerModeChip'
 import { ChatHeaderStatusButton } from './ChatHeaderStatusButton'
 import { ChatHeaderLabels } from './ChatHeaderLabels'
 import { ChatShareMenu } from './ChatShareMenu'
@@ -131,7 +131,14 @@ export const ChatHeader = React.memo(function ChatHeader({
     onSessionStatusChange,
     onSessionLabelsChange,
     onDeleteSession,
+    sessionOptions,
+    onSessionOptionsChange,
   } = useAppShellContext()
+  // Like pi-web's "受限模式" badge: only a non-default (non-Execute) mode is shown, after the title.
+  const permissionMode = sessionOptions.get(sessionId)?.permissionMode
+  const handlePermissionModeChange = React.useCallback((mode: import('@craft-agent/shared/agent/modes').PermissionMode) => {
+    onSessionOptionsChange(sessionId, { permissionMode: mode })
+  }, [onSessionOptionsChange, sessionId])
   const compact = !!isCompactMode
 
   const item = React.useMemo(() => {
@@ -175,17 +182,6 @@ export const ChatHeader = React.memo(function ChatHeader({
       console.error('[ChatHeader] openUrl failed:', error)
     }
   }, [sessionId])
-
-  // Task orchestrator sessions (spec-backed, top-level) get an "Edit task" action that opens the
-  // board's full-pane Task editor prefilled from task.yaml.
-  const taskSlug = item?.taskSlug
-  const isTaskOrchestrator = !!taskSlug && !item?.parentSessionId
-  const setKanbanEditorTarget = useSetAtom(kanbanEditorTargetAtom)
-  const handleEditTask = React.useCallback(() => {
-    if (!taskSlug) return
-    setKanbanEditorTarget({ mode: 'edit', sessionId, taskSlug, initialTitle: title })
-    navigate(routes.view.board())
-  }, [taskSlug, sessionId, title, setKanbanEditorTarget])
 
   // ── Compact: one drawer for ⋯ and the status glyph, plus the Session info sheet ──
   const [drawer, setDrawer] = React.useState<DrawerState>({ open: false, view: 'root' })
@@ -261,6 +257,11 @@ export const ChatHeader = React.memo(function ChatHeader({
           {meta}
         </span>
       )}
+      {permissionMode && permissionMode !== 'allow-all' && !compact && (
+        <span className="titlebar-no-drag shrink-0">
+          <ComposerModeChip permissionMode={permissionMode} onPermissionModeChange={handlePermissionModeChange} sessionId={sessionId} />
+        </span>
+      )}
       {showPrChip && prWatch && (
         <ChatHeaderPrChip
           sessionId={sessionId}
@@ -292,13 +293,6 @@ export const ChatHeader = React.memo(function ChatHeader({
   const moreLabel = t('session.actionsFor', { title })
   const actions = (
     <div className="flex items-center gap-1">
-      {isTaskOrchestrator && (
-        <PanelHeaderCenterButton
-          icon={<Pencil className="h-4 w-4" />}
-          tooltip={t('kanban.editTask')}
-          onClick={handleEditTask}
-        />
-      )}
       {item && !compact && (
         <SessionInfoPopover
           sessionId={sessionId}

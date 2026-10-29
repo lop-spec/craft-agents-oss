@@ -8,6 +8,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PanelHeaderCenterButton } from '@/components/ui/PanelHeaderCenterButton'
+import { useHoverPopover } from '@/hooks/useHoverPopover'
 import { SessionStatusMenu, statusDisplayLabel } from '@/components/ui/session-status-menu'
 import {
   getState,
@@ -37,10 +38,14 @@ export function ChatHeaderStatusButton({
   compactExpanded = false,
 }: ChatHeaderStatusButtonProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = React.useState(false)
+  // Rest the pointer on the glyph to float the picker out; picking a status tucks it back in.
+  const popover = useHoverPopover({ openDelay: 220, closeDelay: 180 })
+  const setPopoverOpen = popover.onOpenChange
+  const setPopoverOpenRef = React.useRef(setPopoverOpen)
+  setPopoverOpenRef.current = setPopoverOpen
   // The desktop popover must not come back open after a trip through the compact layout.
   const isCompact = !!onOpenCompact
-  React.useEffect(() => setOpen(false), [isCompact])
+  React.useEffect(() => setPopoverOpenRef.current(false), [isCompact])
   const state = getState(statusId, statuses)
   const label = t('chat.statusButton', { status: state ? statusDisplayLabel(state, t) : statusId })
 
@@ -68,15 +73,17 @@ export function ChatHeaderStatusButton({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={popover.open} onOpenChange={popover.onOpenChange}>
       <PopoverTrigger asChild>
-        <PanelHeaderCenterButton icon={glyph} aria-label={label} title={label} className="panel-header-status" />
+        <PanelHeaderCenterButton {...popover.triggerProps} icon={glyph} aria-label={label} title={label} className="panel-header-status" />
       </PopoverTrigger>
       <PopoverContent
+        {...popover.contentProps}
         className="w-auto p-0 border-0 shadow-none bg-transparent"
         side="bottom"
         align="start"
         sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => {
           // Like the composer chip this replaces: typing continues in the composer.
           e.preventDefault()
@@ -86,8 +93,9 @@ export function ChatHeaderStatusButton({
         <SessionStatusMenu
           activeState={statusId}
           states={statuses}
+          filterable={false}
           onSelect={(id) => {
-            setOpen(false)
+            setPopoverOpen(false)
             onSelect(id)
           }}
         />

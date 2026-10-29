@@ -27,7 +27,7 @@ import { useAppShellContext } from '@/context/AppShellContext'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { automationSelection } from '@/hooks/useEntitySelection'
-import { APP_EVENTS, AGENT_EVENTS, getEventDisplayName, type AutomationListItem, type AutomationListFilter } from './types'
+import { getEventDisplayName, type AutomationListItem, type AutomationListFilter } from './types'
 import { formatShortRelativeTime } from './utils'
 
 const {
@@ -195,8 +195,7 @@ export function AutomationsListPanel({
     const kind = automationFilter?.kind ?? 'all'
     if (kind === 'all') return automations
     if (kind === 'scheduled') return automations.filter(a => a.event === 'SchedulerTick')
-    if (kind === 'app') return automations.filter(a => (APP_EVENTS as string[]).includes(a.event) && a.event !== 'SchedulerTick')
-    if (kind === 'agent') return automations.filter(a => (AGENT_EVENTS as string[]).includes(a.event))
+    if (kind === 'event') return automations.filter(a => a.event !== 'SchedulerTick')
     return automations
   }, [automations, automationFilter?.kind])
 

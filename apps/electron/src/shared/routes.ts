@@ -97,31 +97,9 @@ export const routes = {
     allSessions: (sessionId?: string) =>
       sessionId ? `allSessions/session/${sessionId}` as const : 'allSessions' as const,
 
-    /** Flagged view (sessions navigator, flagged filter) */
-    flagged: (sessionId?: string) =>
-      sessionId ? `flagged/session/${sessionId}` as const : 'flagged' as const,
-
     /** Archived view (sessions navigator, archived filter) */
     archived: (sessionId?: string) =>
       sessionId ? `archived/session/${sessionId}` as const : 'archived' as const,
-
-    /** Todo state filter view (sessions navigator, state filter) */
-    state: (stateId: string, sessionId?: string) =>
-      sessionId
-        ? `state/${stateId}/session/${sessionId}` as const
-        : `state/${stateId}` as const,
-
-    /** Label filter view (sessions navigator, label filter — includes descendants via tree hierarchy) */
-    label: (labelId: string, sessionId?: string) =>
-      sessionId
-        ? `label/${encodeURIComponent(labelId)}/session/${sessionId}` as const
-        : `label/${encodeURIComponent(labelId)}` as const,
-
-    /** View filter (sessions navigator, view filter — evaluated dynamically) */
-    view: (viewId: string, sessionId?: string) =>
-      sessionId
-        ? `view/${encodeURIComponent(viewId)}/session/${sessionId}` as const
-        : `view/${encodeURIComponent(viewId)}` as const,
 
     /** Sources view (sources navigator) - supports type filtering */
     sources: (params?: { sourceSlug?: string; type?: 'api' | 'mcp' | 'local' }) => {
@@ -159,11 +137,11 @@ export const routes = {
     },
 
     /** Automations view (automations navigator) - supports type filtering */
-    automations: (params?: { automationId?: string; type?: 'scheduled' | 'event' | 'agentic' }) => {
+    automations: (params?: { automationId?: string; type?: 'scheduled' | 'event' }) => {
       const { automationId, type } = params ?? {}
       const base = type ? `automations/${type}` : 'automations'
       if (automationId) return `${base}/automation/${automationId}` as const
-      return base as 'automations' | `automations/${'scheduled' | 'event' | 'agentic'}`
+      return base as 'automations' | `automations/${'scheduled' | 'event'}`
     },
 
     /** Scheduled automations view (automations navigator, scheduled filter) */
@@ -173,10 +151,6 @@ export const routes = {
     /** Event-based automations view (automations navigator, event filter) */
     automationsEvent: (automationId?: string) =>
       automationId ? `automations/event/automation/${automationId}` as const : 'automations/event' as const,
-
-    /** Agentic automations view (automations navigator, agentic filter) */
-    automationsAgentic: (automationId?: string) =>
-      automationId ? `automations/agentic/automation/${automationId}` as const : 'automations/agentic' as const,
 
     /** Settings view (settings navigator) - uses SettingsSubpage from registry */
     settings: (subpage?: SettingsSubpage) =>
@@ -190,14 +164,6 @@ export const routes = {
         ? `projects/project/${projectSlug}` as const
         : 'projects' as const,
 
-    /** Pages view (full-width library grid, or one page's embedded render) */
-    pages: (pageSlug?: string) =>
-      pageSlug
-        ? `pages/page/${pageSlug}` as const
-        : 'pages' as const,
-
-    /** Kanban board view (sessions navigator, board view mode, all sessions) */
-    board: () => 'board' as const,
   },
 } as const
 

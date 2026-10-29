@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next"
-import { AlertCircle, CodeXml, Flag, Hand } from "lucide-react"
+import { AlertCircle, Flag, Hand } from "lucide-react"
 import { useActionLabel } from "@/actions"
 import { cn } from "@/lib/utils"
 import { rendererPerf } from "@/lib/perf"
@@ -45,6 +45,8 @@ export interface SessionItemProps {
   isSelected: boolean
   isFirstInGroup: boolean
   isInMultiSelect: boolean
+  /** Project grouping already names the project: skip the hover name */
+  hideProjectName?: boolean
   onSelect: () => void
   onToggleSelect?: () => void
   onRangeSelect?: () => void
@@ -63,6 +65,7 @@ export function SessionItem({
   isSelected,
   isFirstInGroup: _isFirstInGroup,
   isInMultiSelect,
+  hideProjectName = false,
   onSelect,
   onToggleSelect,
   onRangeSelect,
@@ -113,7 +116,7 @@ export function SessionItem({
     ? ctx.projects?.find(p => p.id === item.projectId)
     : undefined
   const projectColor = boundProject?.color
-  const projectName = boundProject?.name
+  const projectName = hideProjectName ? undefined : boundProject?.name
 
   const handleClick = (e: React.MouseEvent) => {
     ctx.onFocusZone()
@@ -236,11 +239,8 @@ export function SessionItem({
       subtitle={subtitle}
       subtitleTrailing={hasLabels && !needsAttention ? <SessionBadges item={item} /> : undefined}
       titleSuffix={
-        (projectName || hasMessagingBinding || item.codingMode) ? (
+        (projectName || hasMessagingBinding) ? (
           <div className="flex items-center gap-1">
-            {item.codingMode && (
-              <CodeXml className="size-3.5 shrink-0 text-tertiary" aria-label={t("chat.codingMode.label")} />
-            )}
             {projectName && (
               // Revealed on hover/focus only, and out of the layout otherwise: an invisible (opacity-0)
               // name still reserved its width and cut the title short for nothing. Solved tertiary

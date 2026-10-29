@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -7,26 +6,33 @@ import { getStateIcon, getStateIconStyle } from "@/config/session-status-config"
 import { useSessionListContext } from "@/context/SessionListContext"
 import type { SessionMeta } from "@/atoms/sessions"
 import { getSessionStatus } from "@/utils/session"
+import { useHoverPopover } from "@/hooks/useHoverPopover"
 
 interface SessionStatusIconProps {
   item: SessionMeta
 }
 
+/**
+ * The row's status glyph: resting the pointer on it floats the status picker out; picking a status
+ * (or moving away) tucks it back in. A click pins it open (keyboard and touch use that path).
+ */
 export function SessionStatusIcon({ item }: SessionStatusIconProps) {
   const { t } = useTranslation()
   const ctx = useSessionListContext()
-  const [open, setOpen] = useState(false)
+  const popover = useHoverPopover({ openDelay: 220, closeDelay: 180 })
   const status = getSessionStatus(item)
+  const close = () => popover.onOpenChange(false)
 
   const handleSelect = (state: import("@/config/session-status-config").SessionStatusId) => {
-    setOpen(false)
+    close()
     ctx.onSessionStatusChange(item.id, state)
   }
 
   return (
-    <Popover modal={true} open={open} onOpenChange={setOpen}>
+    <Popover open={popover.open} onOpenChange={popover.onOpenChange}>
       <PopoverTrigger asChild>
         <button
+          {...popover.triggerProps}
           type="button"
           className={cn(
             // 16px glyph (spec §2.4) in a 24px button box (36px in the compact/touch shell), padded around
@@ -38,7 +44,7 @@ export function SessionStatusIcon({ item }: SessionStatusIconProps) {
           )}
           style={getStateIconStyle(status, ctx.sessionStatuses)}
           aria-haspopup="menu"
-          aria-expanded={open}
+          aria-expanded={popover.open}
           aria-label={t("status.change")}
           onContextMenu={(e) => {
             e.preventDefault()
@@ -49,10 +55,13 @@ export function SessionStatusIcon({ item }: SessionStatusIconProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent
+        {...popover.contentProps}
         className="w-auto p-0 border-0 shadow-none bg-transparent"
         align="start"
         side="bottom"
         sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
         onContextMenu={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -62,9 +71,10 @@ export function SessionStatusIcon({ item }: SessionStatusIconProps) {
           activeState={status}
           onSelect={handleSelect}
           states={ctx.sessionStatuses}
+          filterable={false}
           isArchived={item.isArchived}
-          onArchive={ctx.onArchive ? () => { setOpen(false); ctx.onArchive!(item.id) } : undefined}
-          onUnarchive={ctx.onUnarchive ? () => { setOpen(false); ctx.onUnarchive!(item.id) } : undefined}
+          onArchive={ctx.onArchive ? () => { close(); ctx.onArchive!(item.id) } : undefined}
+          onUnarchive={ctx.onUnarchive ? () => { close(); ctx.onUnarchive!(item.id) } : undefined}
         />
       </PopoverContent>
     </Popover>

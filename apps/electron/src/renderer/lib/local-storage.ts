@@ -10,17 +10,10 @@ const PREFIX = 'craft-'
  * Centralized here to avoid magic strings and key collisions.
  */
 export const KEYS = {
-  // Chat sidebar
+  // Session column
   sidebarVisible: 'sidebar-visible',
-  sidebarWidth: 'sidebar-width',
   sessionListWidth: 'session-list-width',
-  sidebarMode: 'sidebar-mode',
-  listFilter: 'list-filter',
-  labelFilter: 'label-filter',
-  viewFilters: 'view-filters', // Per-view filter map: { [viewKey]: { statuses, labels } }
-  expandedFolders: 'expanded-folders',
-  collapsedSidebarItems: 'collapsed-sidebar-items',
-  chatGroupingMode: 'chat-grouping-mode', // How to group chats: 'date' | 'status'
+  sessionGrouping: 'session-grouping', // 'project' | 'status' (workspace-scoped)
   collapsedSessionGroups: 'collapsed-session-groups', // Collapsed group keys in session list
 
   // Focus mode
@@ -53,9 +46,6 @@ export const KEYS = {
   // Appearance
   showConnectionIcons: 'show-connection-icons',
   projectColorTreatment: 'project-color-treatment', // 'stripe' | 'stripe-tint'
-
-  // What's New
-  whatsNewLastSeenVersion: 'whats-new-last-seen-version',
 
   // Workspace navigation state (workspace-scoped via suffix = workspaceSlug)
   // Stores the full URL search string so switching back restores panels/focus/sidebar

@@ -5,41 +5,35 @@ import {
 } from '../session-list-collapse'
 
 describe('serializeSessionFilterForScope', () => {
-  it('serializes simple filter kinds', () => {
+  it('serializes filter kinds', () => {
     expect(serializeSessionFilterForScope({ kind: 'allSessions' })).toBe('allSessions')
-    expect(serializeSessionFilterForScope({ kind: 'flagged' })).toBe('flagged')
     expect(serializeSessionFilterForScope({ kind: 'archived' })).toBe('archived')
-  })
-
-  it('serializes id-based filters with stable prefixes', () => {
-    expect(serializeSessionFilterForScope({ kind: 'state', stateId: 'in-progress' })).toBe('state:in-progress')
-    expect(serializeSessionFilterForScope({ kind: 'label', labelId: 'priority/high' })).toBe('label:priority%2Fhigh')
-    expect(serializeSessionFilterForScope({ kind: 'view', viewId: 'mine+active' })).toBe('view:mine%2Bactive')
+    expect(serializeSessionFilterForScope(undefined)).toBe('allSessions')
   })
 })
 
 describe('buildCollapsedGroupsScopeSuffix', () => {
   it('creates different keys for different filters and grouping modes', () => {
-    const inProgressDate = buildCollapsedGroupsScopeSuffix({
+    const activeProject = buildCollapsedGroupsScopeSuffix({
       workspaceId: 'ws-1',
-      currentFilter: { kind: 'state', stateId: 'in-progress' },
-      groupingMode: 'date',
+      currentFilter: { kind: 'allSessions' },
+      groupingMode: 'project',
     })
 
-    const inProgressStatus = buildCollapsedGroupsScopeSuffix({
+    const activeStatus = buildCollapsedGroupsScopeSuffix({
       workspaceId: 'ws-1',
-      currentFilter: { kind: 'state', stateId: 'in-progress' },
+      currentFilter: { kind: 'allSessions' },
       groupingMode: 'status',
     })
 
-    const doneDate = buildCollapsedGroupsScopeSuffix({
+    const archivedDate = buildCollapsedGroupsScopeSuffix({
       workspaceId: 'ws-1',
-      currentFilter: { kind: 'state', stateId: 'done' },
+      currentFilter: { kind: 'archived' },
       groupingMode: 'date',
     })
 
-    expect(inProgressDate).not.toBe(inProgressStatus)
-    expect(inProgressDate).not.toBe(doneDate)
+    expect(activeProject).not.toBe(activeStatus)
+    expect(activeProject).not.toBe(archivedDate)
   })
 
   it('creates different keys across workspaces', () => {

@@ -38,6 +38,14 @@ export interface EntityListGroup<T> {
   collapsible?: boolean
   /** Number of hidden items when collapsed. Present on collapsed placeholder groups (items will be []). */
   collapsedCount?: number
+  /** Leading glyph of the header (project folder, status icon) */
+  icon?: React.ReactNode
+  /** Total count shown right-aligned in the header, collapsed or not */
+  count?: number
+  /** Header actions, revealed on hover (e.g. new session in this project) */
+  actions?: React.ReactNode
+  /** Row after the group's items (e.g. "show all N") */
+  footer?: React.ReactNode
 }
 
 export interface EntityListProps<T> {
@@ -102,6 +110,9 @@ function CollapsibleGroupHeader({
   label,
   isCollapsed,
   itemCount,
+  icon,
+  count,
+  actions,
   onToggle,
   onCollapseAll,
   onExpandAll,
@@ -109,10 +120,64 @@ function CollapsibleGroupHeader({
   label: string
   isCollapsed: boolean
   itemCount: number
+  icon?: React.ReactNode
+  count?: number
+  actions?: React.ReactNode
   onToggle: () => void
   onCollapseAll?: () => void
   onExpandAll?: () => void
 }) {
+  // With a leading glyph (project/status groups) the header reads like a tree row: chevron,
+  // glyph, name, then the count and the hover actions on the right edge.
+  if (icon) {
+    return (
+      <ContextMenu modal>
+        <ContextMenuTrigger asChild>
+          <div
+            data-slot="list-group-header"
+            className="sticky top-0 z-sticky flex h-8 w-full items-center bg-paper pr-2 group/header"
+          >
+            <div className="absolute inset-0 pointer-events-none transition-[background-color] duration-micro ease-out-subtle group-hover/header:bg-fill-hover group-hover/header:duration-instant" />
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={!isCollapsed}
+              className="relative flex h-full min-w-0 flex-1 items-center gap-1.5 pl-3 text-left -outline-offset-2"
+            >
+              <ChevronRight
+                aria-hidden="true"
+                className={cn(
+                  "size-3 shrink-0 text-tertiary transition-transform duration-(--spring-snap-dur) ease-(--spring-snap)",
+                  !isCollapsed && "rotate-90"
+                )}
+              />
+              <span className="flex size-4 shrink-0 items-center justify-center text-secondary">{icon}</span>
+              <span className="min-w-0 truncate text-label font-medium text-foreground">{label}</span>
+            </button>
+            {actions && (
+              <div className="relative flex shrink-0 items-center opacity-0 transition-opacity duration-micro group-hover/header:opacity-100 focus-within:opacity-100">
+                {actions}
+              </div>
+            )}
+            <span className="relative ml-1 shrink-0 text-label-sm tabular-nums text-tertiary">{count ?? itemCount}</span>
+          </div>
+        </ContextMenuTrigger>
+        <StyledContextMenuContent>
+          <StyledContextMenuItem onClick={onToggle}>
+            {isCollapsed ? 'Expand' : 'Collapse'}
+          </StyledContextMenuItem>
+          <StyledContextMenuSeparator />
+          <StyledContextMenuItem onClick={onCollapseAll}>
+            Collapse All
+          </StyledContextMenuItem>
+          <StyledContextMenuItem onClick={onExpandAll}>
+            Expand All
+          </StyledContextMenuItem>
+        </StyledContextMenuContent>
+      </ContextMenu>
+    )
+  }
+
   return (
     <ContextMenu modal>
       <ContextMenuTrigger asChild>
@@ -212,6 +277,9 @@ export function EntityList<T>({
                           label={group.label}
                           isCollapsed={!!isCollapsed}
                           itemCount={isCollapsed ? (group.collapsedCount ?? 0) : group.items.length}
+                          icon={group.icon}
+                          count={group.count}
+                          actions={group.actions}
                           onToggle={() => onToggleCollapse(group.key)}
                           onCollapseAll={onCollapseAll}
                           onExpandAll={onExpandAll}
@@ -224,6 +292,7 @@ export function EntityList<T>({
                           {renderItem(item, indexInGroup, indexInGroup === 0)}
                         </React.Fragment>
                       )}
+                      {!isCollapsed && group.footer}
                     </div>
                   )
                 })

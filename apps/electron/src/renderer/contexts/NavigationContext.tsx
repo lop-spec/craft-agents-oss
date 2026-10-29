@@ -40,8 +40,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import { useSession } from '@/hooks/useSession'
-import { useLabels } from '@/hooks/useLabels'
-import { matchesLabelFilter } from '@craft-agent/shared/labels'
 import {
   parseRoute,
   parseRouteToNavigationState,
@@ -71,7 +69,6 @@ import {
   isSkillsNavigation,
   isAutomationsNavigation,
   isProjectsNavigation,
-  isPagesNavigation,
   DEFAULT_NAVIGATION_STATE,
 } from '../../shared/types'
 import { sessionMetaMapAtom, updateSessionMetaAtom, type SessionMeta } from '@/atoms/sessions'
@@ -95,7 +92,7 @@ export type { Route }
 
 // Re-export navigation state types for consumers
 export type { NavigationState, SessionFilter }
-export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isProjectsNavigation, isPagesNavigation }
+export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isProjectsNavigation }
 
 // =============================================================================
 // Context
@@ -172,8 +169,6 @@ export function NavigationProvider({
   const sessionMetaMap = useAtomValue(sessionMetaMapAtom)
   const sessionMetas = useMemo(() => Array.from(sessionMetaMap.values()), [sessionMetaMap])
   const updateSessionMeta = useSetAtom(updateSessionMetaAtom)
-  // Label tree for filter matching (auto-select must agree with the visible list).
-  const { labels: labelConfigs } = useLabels(workspaceId)
 
   const pushPanel = useSetAtom(pushPanelAtom)
 
@@ -547,27 +542,14 @@ export function NavigationProvider({
         switch (filter.kind) {
           case 'allSessions':
             return session.isArchived !== true
-          case 'flagged':
-            return session.isFlagged === true && session.isArchived !== true
           case 'archived':
             return session.isArchived === true
-          case 'state':
-            return session.sessionStatus === filter.stateId && session.isArchived !== true
-          case 'label': {
-            if (session.isArchived === true) return false
-            // Shared predicate — descendant-aware and project-scoped, matching
-            // exactly what the session list renders (auto-select must agree).
-            return matchesLabelFilter(session, filter, labelConfigs)
-          }
-          case 'view':
-            if (session.isArchived === true) return false
-            return true
           default:
             return false
         }
       })
     },
-    [sessionMetas, workspaceId, labelConfigs]
+    [sessionMetas, workspaceId]
   )
 
   const getFirstSessionId = useCallback(
@@ -637,11 +619,8 @@ export function NavigationProvider({
       }
 
       // Sessions: auto-select last/first session.
-      // Board view has no per-session detail, so skip auto-selection — otherwise
-      // navigating to the board would immediately resolve into a chat route.
       if (
         isSessionsNavigation(nextState) &&
-        nextState.viewMode !== 'board' &&
         !nextState.details &&
         !options?.skipAutoSelect
       ) {
@@ -735,11 +714,7 @@ export function NavigationProvider({
             await window.electronAPI.sessionCommand(session.id, { type: 'setLabels', labels: [parsed.params.label] })
           }
 
-          // Determine navigation filter
-          const filter: import('../../shared/types').SessionFilter =
-            parsed.params.status ? { kind: 'state', stateId: parsed.params.status } :
-            parsed.params.label ? { kind: 'label', labelId: parsed.params.label } :
-            { kind: 'allSessions' }
+          const filter: import('../../shared/types').SessionFilter = { kind: 'allSessions' }
 
           if (options?.newPanel) {
             // Open the new session in a new panel using lane-aware routing (pushPanel auto-focuses it)
@@ -1217,29 +1192,7 @@ export function NavigationProvider({
       return
     }
 
-    const filter = navigationState.filter
-    switch (filter.kind) {
-      case 'allSessions':
-        navigate(routes.view.allSessions(sessionId))
-        break
-      case 'flagged':
-        navigate(routes.view.flagged(sessionId))
-        break
-      case 'archived':
-        navigate(routes.view.archived(sessionId))
-        break
-      case 'state':
-        navigate(routes.view.state(filter.stateId, sessionId))
-        break
-      case 'label':
-        navigate(routes.view.label(filter.labelId, sessionId))
-        break
-      case 'view':
-        navigate(routes.view.view(filter.viewId, sessionId))
-        break
-      default:
-        navigate(routes.view.allSessions(sessionId))
-    }
+    navigate(navigationState.filter.kind === 'archived' ? routes.view.archived(sessionId) : routes.view.allSessions(sessionId))
   }, [navigationState, navigate])
 
   // =========================================================================
@@ -1252,7 +1205,7 @@ export function NavigationProvider({
     // Don't auto-select when panel stack is empty (user closed all panels)
     if (store.get(panelStackAtom).length === 0) return
     // Scoped to sessions with no explicit detail. resolveAutoSelection owns the
-    // selection decision (board skip, last/first fallback) so it lives in one
+    // selection decision (last/first fallback) so it lives in one
     // place; this effect just applies it when the session list loads after
     // navigation (workspace switch, lazy session load, etc.).
     // Decide on the store's focused route, not this render's `navigationState`:
