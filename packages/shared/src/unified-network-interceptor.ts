@@ -21,6 +21,7 @@
 // Shared infrastructure (toolMetadataStore, error capture, logging, config)
 // Hide every child process console on Windows in SDK subprocesses (must precede other imports)
 import './utils/windows-hide-children-auto.ts';
+import { createHash } from 'node:crypto';
 import { getLopConfig } from './agent/core/lop/config.ts';
 import {
   DEBUG,
@@ -1397,6 +1398,51 @@ export function createOpenAiResponsesSseStrippingStream(): TransformStream<Uint8
   });
 }
 
+/**
+ * lop.json `sharedPromptCacheKey: true`: replace Pi's per-session prompt_cache_key
+ * with a hash of the stable prefix (model, instructions, tools, leading
+ * system/developer items up to the per-session working directory), so a new
+ * session's first request lands on the cache built by earlier sessions with
+ * the same system prompt. Session headers that
+ * carried the old key are rewritten too, keeping key and routing consistent.
+ */
+function applySharedPromptCacheKey(init: RequestInit, body: Record<string, unknown>): RequestInit {
+  const oldKey = body.prompt_cache_key;
+  if (typeof oldKey !== 'string' || !oldKey) return init;
+  const input = Array.isArray(body.input) ? (body.input as Array<Record<string, unknown>>) : [];
+  // Craft appends the per-session <working_directory> block to the system
+  // prompt. Move it into its own message: upstream caches at message
+  // boundaries, so the shared part before it becomes a reusable prefix.
+  const first = input[0];
+  const marker = '<working_directory>';
+  if ((first?.role === 'system' || first?.role === 'developer') && typeof first.content === 'string') {
+    const at = first.content.indexOf(marker);
+    if (at > 0) {
+      input.splice(1, 0, { role: first.role, content: first.content.slice(at) });
+      first.content = first.content.slice(0, at);
+    }
+  }
+  const lead: unknown[] = [];
+  for (const item of input) {
+    if (item?.role !== 'system' && item?.role !== 'developer') break;
+    if (typeof item.content === 'string' && item.content.startsWith(marker)) break;
+    lead.push({ role: item.role, content: item.content });
+  }
+  if (!lead.length && typeof body.instructions !== 'string') return init;
+  const digest = createHash('sha256')
+    .update(JSON.stringify([body.model, body.instructions ?? null, body.tools ?? null, lead]))
+    .digest('hex')
+    .slice(0, 32);
+  const newKey = `craft-prefix-${digest}`;
+  body.prompt_cache_key = newKey;
+  const headers = new Headers(init.headers as HeadersInit | undefined);
+  for (const [name, value] of [...headers.entries()]) {
+    if (value === oldKey) headers.set(name, newKey);
+  }
+  debugLog(`[OpenAI Responses Cache] prompt_cache_key ${oldKey} -> ${newKey}`);
+  return { ...init, headers };
+}
+
 const openAiResponsesAdapter: ApiAdapter = {
   name: 'openai-responses',
 
@@ -1501,6 +1547,11 @@ const openAiResponsesAdapter: ApiAdapter = {
   },
 
   stripsSseMetadata: true,
+
+  modifyRequest(_url: string, init: RequestInit, body: Record<string, unknown>): { init: RequestInit; body: Record<string, unknown> } {
+    if (getLopConfig().sharedPromptCacheKey !== true) return { init, body };
+    return { init: applySharedPromptCacheKey(init, body), body };
+  },
 };
 
 /**

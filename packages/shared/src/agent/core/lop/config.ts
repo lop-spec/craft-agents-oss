@@ -9,7 +9,8 @@
  *   "autoBackup": true,                          // back up files before Write/Edit
  *   "promptFiles": ["C:/Users/lop/.claude/CLAUDE.md"],   // appended to the system prompt
  *   "memoryIndex": "C:/…/memory/MEMORY.md",     // appended to the system prompt
- *   "toolMetadata": false                        // _displayName/_intent on tool calls
+ *   "toolMetadata": false,                       // _displayName/_intent on tool calls
+ *   "sharedPromptCacheKey": true                 // Responses: prompt_cache_key = stable prefix hash
  * }
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -22,6 +23,7 @@ export interface LopConfig {
   promptFiles?: string[];
   memoryIndex?: string;
   toolMetadata?: boolean;
+  sharedPromptCacheKey?: boolean;
 }
 
 let cached: { mtimeMs: number; config: LopConfig } | null = null;
