@@ -41,7 +41,7 @@ export function GroupingToggle({
             aria-checked={active}
             onClick={() => onChange(option.id)}
             className={cn(
-              'h-control-sm rounded-sm px-2.5 text-label-sm font-medium whitespace-nowrap',
+              'h-control-sm rounded-sm px-2.5 text-label-sm font-medium whitespace-nowrap @max-[17.5rem]/sessioncol:px-1.5',
               'transition-[background-color,color,box-shadow] duration-micro ease-out-subtle hover:duration-instant',
               active ? 'bg-floating text-foreground shadow-elev-1' : 'text-secondary hover:text-foreground'
             )}
@@ -74,7 +74,7 @@ function IconAction({
           aria-pressed={active}
           onClick={onClick}
           className={cn(
-            'header-icon-btn titlebar-no-drag inline-flex size-control shrink-0 items-center justify-center rounded-md',
+            'header-icon-btn titlebar-no-drag inline-flex size-control shrink-0 items-center justify-center rounded-md @max-[17.5rem]/sessioncol:size-control-sm',
             'transition-[background-color,color] duration-micro ease-out-subtle hover:duration-instant',
             active ? 'bg-fill-selected text-foreground' : 'text-secondary hover:bg-fill-hover hover:text-foreground'
           )}
@@ -115,7 +115,7 @@ export function SessionNavHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="flex h-[48px] shrink-0 items-center gap-1 pl-3 pr-2 titlebar-drag-region">
+    <div className="flex h-[48px] shrink-0 items-center gap-1 pl-3 pr-2 @max-[17.5rem]/sessioncol:pl-2 @max-[17.5rem]/sessioncol:pr-1.5 titlebar-drag-region">
       {showingArchived ? (
         <button
           type="button"
@@ -147,7 +147,7 @@ export function SessionNavHeader({
             type="button"
             data-tutorial="new-chat-button"
             onClick={(e) => onNewSession(e.metaKey || e.ctrlKey)}
-            className="titlebar-no-drag ml-0.5 inline-flex h-control shrink-0 items-center gap-1 rounded-md border border-separator px-2 text-label text-foreground transition-[background-color] duration-micro ease-out-subtle hover:bg-fill-hover hover:duration-instant"
+            className="titlebar-no-drag ml-0.5 inline-flex h-control shrink-0 items-center gap-1 rounded-md border border-separator px-2 @max-[17.5rem]/sessioncol:px-1.5 text-label text-foreground transition-[background-color] duration-micro ease-out-subtle hover:bg-fill-hover hover:duration-instant"
           >
             <SquarePenRounded className="size-3.5 text-secondary" />
             <span className="whitespace-nowrap @max-[17.5rem]/sessioncol:hidden">{t('sidebar.newShort')}</span>
@@ -204,7 +204,7 @@ export function SessionNavFooter({
   ]
   return (
     <nav aria-label={t('sidebar.capabilities')} className="shrink-0 border-t border-separator px-1.5 py-1.5">
-      <div className="grid grid-cols-4 gap-0.5">
+      <div className="flex gap-0.5">
         {items.map(item => {
           const isActive = active === item.id
           return (
@@ -212,9 +212,10 @@ export function SessionNavFooter({
               key={item.id}
               type="button"
               aria-current={isActive ? 'page' : undefined}
+              title={item.label}
               onClick={() => onSelect(item.id)}
               className={cn(
-                'inline-flex h-control min-w-0 items-center justify-center gap-1 rounded-md px-1 text-label-sm',
+                'inline-flex h-control min-w-0 flex-auto items-center justify-center gap-1 rounded-md px-1 text-label-sm',
                 'transition-[background-color,color] duration-micro ease-out-subtle hover:duration-instant',
                 isActive ? 'bg-fill-selected text-foreground' : 'text-secondary hover:bg-fill-hover hover:text-foreground'
               )}
