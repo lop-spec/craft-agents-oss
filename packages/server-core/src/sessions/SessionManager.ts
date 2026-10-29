@@ -77,7 +77,6 @@ import {
 import { serializeHeaderCredential, loadWorkspaceSources, loadAllSources, getSourcesBySlugs, isSourceUsable, type LoadedSource, type McpServerConfig, getSourcesNeedingAuth, getSourceCredentialManager, TokenRefreshManager } from '@craft-agent/shared/sources'
 import { listTaskSlugs, parseTaskSpec, uniqueTaskSlug } from '@craft-agent/shared/tasks'
 import { createTaskFromSpec, resolveCreateTaskProjectId } from '../tasks'
-import { buildPagesToolCallbacks } from '../pages/tool-callbacks'
 import { buildPrWatchToolCallbacks } from '../pr-watch/tool-callbacks'
 import { prEntryId } from '@craft-agent/shared/pr-watch'
 import { getPrAutoFixMonitor, getPrWatchRegistry } from '../handlers/rpc/pr-watch'
@@ -393,8 +392,7 @@ async function saveClaudeTurnAnchor(
 /**
  * Session-flavored wrapper around the shared builder: keeps the ~7 existing
  * call sites unchanged while routing logs through sessionLog. The
- * implementation lives in ../sources/build-servers.ts so the pages action
- * executor uses the exact same credential path.
+ * implementation lives in ../sources/build-servers.ts.
  */
 async function buildServersFromSources(
   sources: LoadedSource[],
@@ -1862,7 +1860,6 @@ export class SessionManager implements ISessionManager {
   }
 
   private browserPaneManager: IBrowserPaneManager | null = null
-  private enqueuePageThumbnailFn?: (req: { workspaceId: string; workspaceRootPath: string; slug: string }) => void
   private rpcServer: RpcServer | null = null
   private remoteBpms = new Map<string, RemoteBrowserPaneManager>()
   /** Pinned desktop client per session for `client:browser:invoke` routing. */
@@ -1876,24 +1873,6 @@ export class SessionManager implements ISessionManager {
   setBrowserPaneManager(bpm: IBrowserPaneManager): void {
     this.browserPaneManager = bpm
     bpm.setSessionPathResolver((sessionId) => this.getSessionPath(sessionId))
-  }
-
-  /**
-   * Inject the page thumbnail capturer (Electron main only — needs a
-   * BrowserWindow). Headless/WebUI hosts never call this, so
-   * {@link enqueuePageThumbnail} no-ops and tiles fall back to the placeholder.
-   */
-  setPageThumbnailer(fn: (req: { workspaceId: string; workspaceRootPath: string; slug: string }) => void): void {
-    this.enqueuePageThumbnailFn = fn
-  }
-
-  /**
-   * Request a (re)capture of a page's preview poster. Fire-and-forget: the
-   * injected capturer queues it, writes thumbnail.jpg, and stamps page.json
-   * (which broadcasts pages:changed). No-op when no capturer is injected.
-   */
-  enqueuePageThumbnail(workspaceId: string, workspaceRootPath: string, slug: string): void {
-    this.enqueuePageThumbnailFn?.({ workspaceId, workspaceRootPath, slug })
   }
 
   /**
@@ -2195,13 +2174,6 @@ export class SessionManager implements ISessionManager {
         // Notify renderer to re-read automations.json
         this.broadcastAutomationsChanged(workspaceId)
       },
-      onPagesListChange: (pages) => {
-        sessionLog.info(`Pages changed in ${workspaceId} (${pages.length} pages)`)
-        // Rebuild the synthetic page-refresh cron matchers (page.json is the
-        // completion marker, so this also fires after every refresh run)
-        this.automationSystems.get(workspaceRootPath)?.reloadPageRefreshMatchers()
-        this.broadcastPagesChanged(workspaceId, pages)
-      },
       onLlmConnectionsChange: () => {
         sessionLog.info(`LLM connections changed in ${workspaceId}`)
         this.broadcastLlmConnectionsChanged()
@@ -2361,12 +2333,6 @@ export class SessionManager implements ISessionManager {
     if (!this.eventSink) return
     sessionLog.info(`Broadcasting skills changed (${skills.length} skills)`)
     this.eventSink(RPC_CHANNELS.skills.CHANGED, { to: 'workspace', workspaceId }, workspaceId, skills)
-  }
-
-  private broadcastPagesChanged(workspaceId: string, pages: import('@craft-agent/shared/pages').LoadedPage[]): void {
-    if (!this.eventSink) return
-    sessionLog.info(`Broadcasting pages changed (${pages.length} pages)`)
-    this.eventSink(RPC_CHANNELS.pages.CHANGED, { to: 'workspace', workspaceId }, workspaceId, pages)
   }
 
   private broadcastDefaultPermissionsChanged(): void {
@@ -5057,25 +5023,6 @@ export class SessionManager implements ISessionManager {
           const who = (managed.name || managed.id).replace(/\s+/g, ' ').trim()
           return appendProjectMemoryEntry(managed.workspace.rootPath, project.config.slug, `${new Date().toISOString()} — ${who}`, input.note)
         },
-        // Pages tools (list_pages/get_page/create_page/update_page/
-        // write_page_data/delete_page) — grouped callbacks bound to the
-        // invoking session's workspace. Storage flows are shared with the
-        // pages RPC handlers; after each mutation we poke the watcher (Linux
-        // atomic-rename workaround) and broadcast pages:changed, exactly like
-        // those handlers do.
-        pages: buildPagesToolCallbacks({
-          workspaceId: managed.workspace.id,
-          workspaceRootPath: managed.workspace.rootPath,
-          log: (message: string) => sessionLog.info(message),
-          onPagesMutated: async (pageSlug: string) => {
-            this.notifyConfigFileChange(managed.workspace.rootPath, `pages/${pageSlug}/page.json`)
-            const { loadWorkspacePages } = await import('@craft-agent/shared/pages')
-            this.broadcastPagesChanged(managed.workspace.id, loadWorkspacePages(managed.workspace.rootPath))
-          },
-          onContentChanged: (pageSlug: string) => {
-            this.enqueuePageThumbnail(managed.workspace.id, managed.workspace.rootPath, pageSlug)
-          },
-        }),
         // MCP source resources & prompts (source_list_resources/source_read_resource/
         // source_list_prompts/source_get_prompt). Pool and enabled sources are read
         // at call time: getOrCreateAgent replaces the pool when it recreates the agent.

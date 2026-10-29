@@ -79,13 +79,6 @@ describe('session tool filtering helpers', () => {
     // Writes the project's MEMORY.md
     expect(blocked.has('project_memory_append')).toBe(true);
 
-    // Pages: reads are Explore-safe, mutations are not
-    expect(allowed.has('list_pages')).toBe(true);
-    expect(allowed.has('get_page')).toBe(true);
-    expect(blocked.has('create_page')).toBe(true);
-    expect(blocked.has('update_page')).toBe(true);
-    expect(blocked.has('write_page_data')).toBe(true);
-    expect(blocked.has('delete_page')).toBe(true);
   });
 
   it('MCP source resource and prompt tools are read-only and Explore-safe', () => {
@@ -139,7 +132,7 @@ describe('session tool filtering helpers', () => {
 
     it('drops desktop-workflow tools even when their own flags are on', () => {
       const coding = names({ profile: 'coding', includeDecide: true, includeBrowser: true, hasEnabledSources: true, hasProject: true });
-      for (const dropped of ['browser_tool', 'create_page', 'set_session_labels', 'spawn_session', 'call_llm', 'decide', 'transform_data', 'update_user_preferences']) {
+      for (const dropped of ['browser_tool', 'set_session_labels', 'spawn_session', 'call_llm', 'decide', 'transform_data', 'update_user_preferences']) {
         expect(coding).not.toContain(dropped);
       }
       expect(coding.every(name => name in CODING_PROFILE_TOOLS)).toBe(true);

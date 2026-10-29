@@ -117,7 +117,7 @@ export function getGuardedModeCall(
 
   if (toolName.startsWith('mcp__') && !BOOKKEEPING_SESSION_TOOLS.has(toolName)) {
     // Read-only by the same rules as Explore mode, including the workspace and source patterns
-    // (built-in session tools too: pages, agent messages and the like are what Explore blocks).
+    // (built-in session tools too: agent messages and the like are what Explore blocks).
     if (shouldAllowToolInMode(toolName, input, 'safe', { plansFolderPath: ctx.plansFolderPath, dataFolderPath: ctx.dataFolderPath, permissionsContext }).allowed) return null;
     const serverAndTool = toolName.replace('mcp__', '').replace(/__/g, '/');
     return { toolName, promptType: 'mcp_mutation', description: `MCP: ${serverAndTool}`, command: toolName, arguments: input, workingDirectory };

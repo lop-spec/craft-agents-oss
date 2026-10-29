@@ -7,7 +7,6 @@ import type { ThemeOverrides } from '../config/index'
 import type { LoadedSource } from '../sources/types'
 import type { LoadedSkill } from '../skills/types'
 import type { LoadedProject } from '../projects/types'
-import type { LoadedPage } from '../pages/types'
 import type { PrWatchSessionState } from './pr-watch'
 import { RPC_CHANNELS } from './channels'
 import type {
@@ -32,7 +31,6 @@ export interface BroadcastEventMap {
   [RPC_CHANNELS.automations.CHANGED]: [workspaceId: string]
   [RPC_CHANNELS.skills.CHANGED]: [workspaceId: string, skills: LoadedSkill[]]
   [RPC_CHANNELS.projects.CHANGED]: [workspaceId: string, projects: LoadedProject[]]
-  [RPC_CHANNELS.pages.CHANGED]: [workspaceId: string, pages: LoadedPage[]]
   // PR watcher: to the subscribing client only
   [RPC_CHANNELS.prWatch.CHANGED]: [sessionId: string, state: PrWatchSessionState]
   [RPC_CHANNELS.tasks.GENERATED]: [workspaceId: string, result: TaskGenerateResult]

@@ -95,24 +95,6 @@ export type { ProjectMemoryAppendArgs } from './project-memory.ts';
 export { handleArchiveSession } from './archive-session.ts';
 export type { ArchiveSessionArgs } from './archive-session.ts';
 
-// Pages
-export {
-  handleListPages,
-  handleGetPage,
-  handleCreatePage,
-  handleUpdatePage,
-  handleWritePageData,
-  handleDeletePage,
-} from './pages.ts';
-export type {
-  ListPagesArgs,
-  GetPageArgs,
-  CreatePageArgs,
-  UpdatePageArgs,
-  WritePageDataArgs,
-  DeletePageArgs,
-} from './pages.ts';
-
 // Decision model
 export { handleDecide } from './decide.ts';
 export type { DecideArgs } from './decide.ts';

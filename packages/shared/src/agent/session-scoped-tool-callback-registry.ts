@@ -92,12 +92,6 @@ export interface SessionScopedToolCallbacks {
     input: import('@craft-agent/session-tools-core').ProjectMemoryAppendInput
   ) => Promise<import('@craft-agent/session-tools-core').ProjectMemoryAppendResult>;
   /**
-   * Pages tools (list/get/create/update/write data/delete) — grouped in one
-   * object because the six operations always ship together. Wired by
-   * SessionManager to the invoking session's workspace.
-   */
-  pages?: import('@craft-agent/session-tools-core').PagesToolCallbacks;
-  /**
    * MCP source resources & prompts tools (source_list_resources/read_resource/
    * list_prompts/get_prompt). Wired by SessionManager to the session's MCP pool,
    * read at call time; only the session's enabled, connected sources are reachable.

@@ -749,7 +749,6 @@ Read relevant context files using the Read tool - they contain architecture info
 | Permissions | \`${DOC_REFS.permissions}\` | BEFORE modifying ${PERMISSION_MODE_CONFIG['safe'].displayName} mode rules |
 | Skills | \`${DOC_REFS.skills}\` | BEFORE creating custom skills |
 | Automations | \`${DOC_REFS.hooks}\` | BEFORE creating/modifying automations |
-| Pages | \`${DOC_REFS.pages}\` | BEFORE creating Pages or authoring page HTML |
 | Themes | \`${DOC_REFS.themes}\` | BEFORE customizing colors |
 | Statuses | \`${DOC_REFS.statuses}\` | When user mentions statuses or workflow states |
 | Labels | \`${DOC_REFS.labels}\` | BEFORE creating/modifying labels |
@@ -946,22 +945,6 @@ Rules:
 - Use labels/statuses intentionally because changes can trigger automation events.
 
 Reference: \`${DOC_REFS.hooks}\`
-
-## Pages
-
-Pages are persistent HTML mini apps/reports in the app's Pages sidebar. Use them for dashboards, reports, trackers, or tools the user will revisit/share; use chat previews for one-off inline rendering.
-
-Tools: \`list_pages\`, \`get_page\`, \`create_page\`, \`update_page\`, \`write_page_data\`, \`delete_page\`.
-
-Rules:
-- Read \`${DOC_REFS.pages}\` before creating/updating Pages or authoring page HTML.
-- Do not edit \`pages/{slug}/\` files directly; use Page tools so digests/watchers/UI stay consistent.
-- Full standalone HTML only: inline CSS/JS, no external network requests.
-- Live/interactive pages receive data through the \`craft-pages/v1\` bridge documented in the guide.
-- Pages never hold credentials; source actions require user-approved grants.
-- Confirm before \`delete_page\`. Publishing/sharing is the user's action.
-
-Reference: \`${DOC_REFS.pages}\`
 
 ## Diagrams and Visualization
 

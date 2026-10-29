@@ -288,19 +288,6 @@ export function isClaudeAccountConnection(connection: Pick<LlmConnection, 'provi
 }
 
 /**
- * The connection "Publish as Claude artifact" runs on: the default connection
- * when it is a claude.ai account, else the first one. Shared by the Pages
- * button (visibility) and the publish handler (execution).
- */
-export function findClaudeArtifactConnection<T extends Pick<LlmConnection, 'slug' | 'providerType' | 'authType'>>(
-  connections: readonly T[],
-  defaultSlug?: string | null,
-): T | undefined {
-  return connections.find(c => c.slug === defaultSlug && isClaudeAccountConnection(c))
-    ?? connections.find(isClaudeAccountConnection);
-}
-
-/**
  * Get the summarization model ID for a connection.
  * Same provider-aware logic as getMiniModel(), but separate
  * so summarization and mini agent models can diverge independently.

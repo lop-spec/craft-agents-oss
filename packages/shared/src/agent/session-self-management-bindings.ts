@@ -151,13 +151,6 @@ export function attachSessionSelfManagementBindings(
     enumerable: true,
   });
 
-  Object.defineProperty(context, 'pages', {
-    get() {
-      return getSessionScopedToolCallbacks(sessionId)?.pages;
-    },
-    configurable: true,
-    enumerable: true,
-  });
 
   Object.defineProperty(context, 'mcpSources', {
     get() {

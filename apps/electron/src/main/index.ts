@@ -80,7 +80,6 @@ import { join, delimiter } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
 import { SessionManager, setSessionPlatform, setSessionRuntimeHooks } from '@craft-agent/server-core/sessions'
-import { PageThumbnailer } from './page-thumbnailer'
 import { registerAllRpcHandlers } from './handlers/index'
 import { registerCoreRpcHandlers, cleanupRpcClientResources } from '@craft-agent/server-core/handlers/rpc'
 import type { PlatformServices } from '../runtime/platform'
@@ -653,16 +652,6 @@ app.whenReady().then(async () => {
         createSessionManager: () => {
           const sm = new SessionManager()
           sm.setBrowserPaneManager(browserPaneManager!)
-          // Page preview posters: offscreen capture is Electron-main-only. On
-          // capture, nudge the watcher so the pages:changed push carries the
-          // fresh thumbnail pointer to open grids.
-          const pageThumbnailer = new PageThumbnailer({
-            log: (m) => mainLog.info(m),
-            onCaptured: ({ workspaceRootPath, slug }) => {
-              sm.notifyConfigFileChange(workspaceRootPath, `pages/${slug}/page.json`)
-            },
-          })
-          sm.setPageThumbnailer((req) => pageThumbnailer.enqueue(req))
           return sm
         },
         bindRpcServer: (sm, server) => sm.setRpcServer(server),
